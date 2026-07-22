@@ -70,10 +70,27 @@ export async function listDocuments(): Promise<DocumentRecord[]> {
 	await ensureDir();
 	const files = await readdir(DATA_DIR);
 
-	// Sadece bilgi dosyalarını al: "<id>.json" evet, "<id>.analysis.json" hayır
-	const metaFiles = files.filter(
-		(f) => f.endsWith('.json') && !f.endsWith('.analysis.json')
-	);
+	/*
+	 * Sadece BİLGİ dosyalarını al.
+	 *
+	 * Klasörde üç tür json var:
+	 *   abc.json           -> doküman bilgisi   ✅ istediğimiz
+	 *   abc.analysis.json  -> analiz sonucu     ❌
+	 *   abc.messages.json  -> sohbet geçmişi    ❌
+	 *
+	 * Kural: ".json" uzantısını attıktan sonra geriye kalan kısımda
+	 * NOKTA OLMAMALI. "abc" ✅ , "abc.analysis" ❌ , "abc.messages" ❌
+	 *
+	 * Neden böyle? Önceki hali "analysis.json olmasın" diyordu; sohbet
+	 * eklenince messages.json filtreden geçti ve liste çöktü. "Şunu
+	 * hariç tut" yerine "sadece şuna uyanı al" demek, ileride yeni
+	 * dosya türleri eklendiğinde de güvenli kalır.
+	 */
+	const metaFiles = files.filter((f) => {
+		if (!f.endsWith('.json')) return false;
+		const withoutExtension = f.slice(0, -'.json'.length);
+		return !withoutExtension.includes('.');
+	});
 
 	const records = await Promise.all(
 		metaFiles.map(async (f) => {
