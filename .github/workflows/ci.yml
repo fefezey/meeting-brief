@@ -1,0 +1,36 @@
+# Her push ve pull request'te kodun derlendiğini doğrular.
+# Sonuç GitHub'da yeşil tik / kırmızı çarpı olarak görünür.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Depoyu GitHub'ın sunucusuna indir
+      - uses: actions/checkout@v4
+
+      # 2. Node kur. Sürüm .nvmrc dosyasından okunuyor —
+      #    böylece yerel ve CI aynı sürümü kullanır, "bende çalışıyordu"
+      #    sorunları büyük ölçüde ortadan kalkar.
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+
+      # 3. Bağımlılıkları kur.
+      #    "npm ci" (install değil): package-lock.json'a birebir uyar,
+      #    sürümleri kendiliğinden güncellemez — tekrarlanabilir kurulum.
+      - run: npm ci
+
+      # 4. Tip kontrolü: TypeScript ve Svelte hataları
+      - run: npm run check
+
+      # 5. Üretim derlemesi gerçekten çalışıyor mu
+      - run: npm run build
