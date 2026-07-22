@@ -83,7 +83,8 @@ RAG earns its complexity at multi-document scale. Not here, not yet.
 
 `generateAnalysis()` and `streamChatAnswer()` are the only entry points. Both
 pick between a mock and the real Claude implementation at runtime based on
-whether `ANTHROPIC_API_KEY` is set. Same signature, same return type.
+whether credentials exist — an `ANTHROPIC_API_KEY`, or an OAuth profile from
+`ant auth login`. Same signature, same return type.
 
 This meant the entire UI was built and tested before spending a cent on API
 calls, and the switch to real inference is a config change, not a refactor.
@@ -116,6 +117,25 @@ Documents live on disk (`.data/`) as PDF + JSON. Nothing outside
 `lib/server/storage/` knows that — callers only see `listDocuments()`,
 `getAnalysis()`, `appendMessage()`. Swapping in Postgres changes one file.
 
+### Tests that actually catch things
+
+19 unit tests (Vitest, ~200ms) plus 4 end-to-end tests (Playwright) covering the
+full flow: upload → briefing → chat → delete, plus theme persistence and
+rejection of non-PDF files. CI runs both on every push.
+
+The unit tests target pure functions extracted specifically for testability —
+`isMetadataFile()`, `hasEnoughText()`, orphan detection. One is a regression
+test for a bug that shipped: a filter written as "exclude `.analysis.json`"
+silently broke when chat added `.messages.json` files, which were then parsed as
+document records and crashed the index page. The fix inverted it to
+"only accept `<id>.json`", and the test proves the old logic fails.
+
+E2E flakiness was resolved rather than papered over. `networkidle` proved
+unreliable against a Vite dev server (the HMR websocket never settles), so the
+layout stamps `data-hydrated="true"` once hydration completes and tests wait on
+that. Each run uploads a uniquely-named file so leftover state from a previous
+run can't collide.
+
 ### Secrets can't leak by accident
 
 Anything under `lib/server/` is compile-time blocked from client bundles by
@@ -134,15 +154,19 @@ cp .env.example .env     # optional — runs on mock data without a key
 npm run dev
 ```
 
-Open http://localhost:5177. Without `ANTHROPIC_API_KEY` the app runs in mock
-mode with a banner saying so; add the key and restart to switch to real
-inference. No code changes.
+Open http://localhost:5177. With no credentials the app runs in mock mode with a
+banner saying so. To switch to real inference, either run `ant auth login`
+(OAuth — nothing is written into the project) or set `ANTHROPIC_API_KEY`. Either
+way: restart, no code changes.
 
 | Script | |
 | --- | --- |
 | `npm run dev` | dev server |
 | `npm run check` | type-check (`svelte-check`) |
 | `npm run build` | production build |
+| `npm run test` | unit + end-to-end tests |
+| `npm run test:unit` | unit tests only (Vitest, ~200ms) |
+| `npm run test:e2e` | end-to-end tests (Playwright) |
 | `npm run analyze -- file.pdf` | analyze a PDF from the terminal |
 | `npm run screenshots` | regenerate README screenshots |
 
@@ -158,6 +182,7 @@ src/
 │       ├── +page.svelte           split view: PDF | briefing + chat
 │       ├── file/+server.ts        serves PDF bytes
 │       └── chat/+server.ts        streaming chat endpoint
+├── hooks.server.ts                startup: sweep orphaned files
 └── lib/
     ├── components/                UI (shadcn-svelte + chat panel)
     ├── types/                     shared shapes (Zod schemas)
@@ -167,6 +192,7 @@ src/
         ├── analysis/              briefing generation (mock ↔ Claude)
         ├── chat/                  streaming answers (mock ↔ Claude)
         └── anthropic/             client, prompts, config
+e2e/                               Playwright end-to-end tests
 ```
 
 **Stack:** SvelteKit · TypeScript · Tailwind v4 · shadcn-svelte · Zod ·
@@ -185,14 +211,11 @@ Listed because they're real, not because they're hidden.
 - **Citations aren't surfaced yet.** The API returns page-level sources; the UI
   doesn't render them. Requires replacing the `<iframe>` viewer with pdf.js so
   clicking a citation can jump to the page.
-- **Interrupted uploads can leave orphan files** on disk. Invisible to the app,
-  but not cleaned up.
-- **No automated tests yet.** Flows were verified end-to-end manually and via
-  the CLI script.
+- **No visual regression testing.** Screenshots are generated, not diffed.
 
 ## Roadmap
 
 1. Wire up real inference and tune the analysis prompts against real reports
 2. Render citations; jump-to-page via pdf.js
 3. Supabase for persistence and multi-user
-4. Test suite (Vitest + Playwright — Playwright is already a dependency)
+4. Deploy a live demo

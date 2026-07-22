@@ -83,7 +83,18 @@ export const actions: Actions = {
 			createdAt: new Date().toISOString()
 		};
 
-		await saveDocument(record, pdfBytes);
+		/*
+		 * Kaydetme başarısız olursa (disk dolu, izin hatası vb.) yarım
+		 * yazılmış dosyaları hemen temizle. Aksi halde diskte uygulamanın
+		 * göremediği ama yer kaplayan artıklar birikir.
+		 */
+		try {
+			await saveDocument(record, pdfBytes);
+		} catch (err) {
+			await deleteDocument(record.id);
+			console.error('[yükleme] kaydetme başarısız:', err);
+			return fail(500, { error: 'Dosya kaydedilemedi. Diskte yer olduğundan emin ol.' });
+		}
 
 		/* ---------- Analizi BAŞLAT (beklemeden) ----------
 		   startAnalysis await EDİLMİYOR: analiz arkada çalışır,

@@ -1,7 +1,9 @@
 import adapter from '@sveltejs/adapter-auto';
 import { sveltekit } from '@sveltejs/kit/vite';
 import tailwindcss from '@tailwindcss/vite';
-import { defineConfig } from 'vite';
+// 'vite' değil 'vitest/config'ten alıyoruz: bu sürüm aşağıdaki
+// "test" alanını da tanır. Vite'ınki tanımaz ve tip hatası verir.
+import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
 	plugins: [
@@ -18,5 +20,14 @@ export default defineConfig({
 			// See https://svelte.dev/docs/kit/adapters for more information about adapters.
 			adapter: adapter()
 		})
-	]
+	],
+
+	// Vitest ayarları. Aynı dosyada durması iyi: testler uygulamanın
+	// kullandığı çözümleyicileri ($lib gibi) otomatik miras alır.
+	test: {
+		// Sadece birim testleri. Uçtan uca testler Playwright'ta,
+		// ayrı bir klasörde (e2e/) ve ayrı komutla çalışır.
+		include: ['src/**/*.test.ts'],
+		environment: 'node'
+	}
 });

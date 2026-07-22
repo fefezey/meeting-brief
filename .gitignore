@@ -24,3 +24,7 @@ vite.config.ts.timestamp-*
 
 # yerel dosya deposu (yüklenen PDF'ler)
 .data/
+
+# test çıktıları
+test-results/
+playwright-report/

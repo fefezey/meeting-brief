@@ -34,7 +34,15 @@
 	}
 
 	function onFileChange(event: Event) {
-		const input = event.currentTarget as HTMLInputElement;
+		/*
+		 * event.target kullanıyoruz, currentTarget değil.
+		 *
+		 * Svelte 5 bazı olayları tek tek elemanlara değil, kök elemana
+		 * bağlayıp topluca dinler (olay delegasyonu — daha az bellek).
+		 * Bu durumda currentTarget dinleyen eleman, yani kök olur;
+		 * target ise olayı ASIL çıkaran eleman — bize gereken bu.
+		 */
+		const input = event.target as HTMLInputElement;
 		acceptFile(input.files?.[0]);
 	}
 

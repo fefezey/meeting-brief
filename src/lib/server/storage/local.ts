@@ -31,6 +31,30 @@ const metaPath = (id: string) => join(DATA_DIR, `${id}.json`);
 const analysisPath = (id: string) => join(DATA_DIR, `${id}.analysis.json`);
 const messagesPath = (id: string) => join(DATA_DIR, `${id}.messages.json`);
 
+/**
+ * Bu dosya bir DOKÜMAN BİLGİ dosyası mı?
+ *
+ * Klasörde üç tür json var:
+ *   abc.json           -> doküman bilgisi   ✅ istediğimiz
+ *   abc.analysis.json  -> analiz sonucu     ❌
+ *   abc.messages.json  -> sohbet geçmişi    ❌
+ *
+ * Kural: ".json" uzantısını attıktan sonra geriye kalan kısımda
+ * NOKTA OLMAMALI.  "abc" ✅ , "abc.analysis" ❌ , "abc.messages" ❌
+ *
+ * NEDEN BÖYLE YAZILDI: İlk hali "analysis.json olmasın" diyordu.
+ * Sohbet özelliği eklenince messages.json bu filtreden geçti, doküman
+ * kaydı sanıldı ve ana sayfa çöktü. "Şunu hariç tut" kırılgan; "sadece
+ * şuna uyanı al" ileride yeni dosya türleri eklendiğinde de sağlam.
+ *
+ * Dışa aktarılıyor ki test edilebilsin (bkz. local.test.ts).
+ */
+export function isMetadataFile(filename: string): boolean {
+	if (!filename.endsWith('.json')) return false;
+	const withoutExtension = filename.slice(0, -'.json'.length);
+	return withoutExtension.length > 0 && !withoutExtension.includes('.');
+}
+
 /* ------------------------------------------------------------------ */
 /* Doküman                                                             */
 /* ------------------------------------------------------------------ */
@@ -70,27 +94,7 @@ export async function listDocuments(): Promise<DocumentRecord[]> {
 	await ensureDir();
 	const files = await readdir(DATA_DIR);
 
-	/*
-	 * Sadece BİLGİ dosyalarını al.
-	 *
-	 * Klasörde üç tür json var:
-	 *   abc.json           -> doküman bilgisi   ✅ istediğimiz
-	 *   abc.analysis.json  -> analiz sonucu     ❌
-	 *   abc.messages.json  -> sohbet geçmişi    ❌
-	 *
-	 * Kural: ".json" uzantısını attıktan sonra geriye kalan kısımda
-	 * NOKTA OLMAMALI. "abc" ✅ , "abc.analysis" ❌ , "abc.messages" ❌
-	 *
-	 * Neden böyle? Önceki hali "analysis.json olmasın" diyordu; sohbet
-	 * eklenince messages.json filtreden geçti ve liste çöktü. "Şunu
-	 * hariç tut" yerine "sadece şuna uyanı al" demek, ileride yeni
-	 * dosya türleri eklendiğinde de güvenli kalır.
-	 */
-	const metaFiles = files.filter((f) => {
-		if (!f.endsWith('.json')) return false;
-		const withoutExtension = f.slice(0, -'.json'.length);
-		return !withoutExtension.includes('.');
-	});
+	const metaFiles = files.filter(isMetadataFile);
 
 	const records = await Promise.all(
 		metaFiles.map(async (f) => {
@@ -117,6 +121,37 @@ export async function deleteDocument(id: string): Promise<void> {
 		rm(analysisPath(id), { force: true }),
 		rm(messagesPath(id), { force: true })
 	]);
+}
+
+/**
+ * SAHİPSİZ dosyaları siler ve kaç tane sildiğini döndürür.
+ *
+ * Sahipsiz dosya = bilgi kaydı (<id>.json) olmayan ama yan dosyaları
+ * (<id>.pdf, <id>.analysis.json ...) diskte kalmış olan.
+ *
+ * Nasıl oluşur? Yükleme yarıda kesilirse: PDF diske yazılır ama bilgi
+ * kaydı yazılamadan işlem hata alır. Uygulama bu dosyaları GÖRMEZ
+ * (liste sadece bilgi kayıtlarını okur) ama disk dolar.
+ *
+ * Sunucu her açıldığında bir kez çalıştırılıyor (bkz. hooks.server.ts).
+ */
+export async function deleteOrphans(): Promise<number> {
+	await ensureDir();
+	const files = await readdir(DATA_DIR);
+
+	// Önce geçerli kimliklerin listesini çıkar
+	const validIds = new Set(
+		files.filter(isMetadataFile).map((f) => f.slice(0, -'.json'.length))
+	);
+
+	// Kimliği geçerli listede olmayan her dosya sahipsizdir
+	const orphans = files.filter((f) => {
+		const id = f.split('.')[0];
+		return id.length > 0 && !validIds.has(id);
+	});
+
+	await Promise.all(orphans.map((f) => rm(join(DATA_DIR, f), { force: true })));
+	return orphans.length;
 }
 
 /* ------------------------------------------------------------------ */

@@ -81,8 +81,9 @@ RAG karmaşıklığını çok dokümanlı ölçekte hak eder. Burada değil, hen
 ### Sağlayıcı soyutlaması — mock ve gerçek birbirinin yerine geçebilir
 
 `generateAnalysis()` ve `streamChatAnswer()` tek giriş noktası. İkisi de
-çalışma anında, `ANTHROPIC_API_KEY` var mı yok mu diye bakıp mock ile gerçek
-Claude arasında seçim yapıyor. Aynı imza, aynı dönüş tipi.
+çalışma anında kimlik bilgisi var mı diye bakıp mock ile gerçek Claude arasında
+seçim yapıyor — `ANTHROPIC_API_KEY` ya da `ant auth login` ile kurulan OAuth
+profili. Aynı imza, aynı dönüş tipi.
 
 Sonuç: arayüzün tamamı tek kuruş API harcamadan geliştirilip test edildi, gerçek
 çıkarıma geçiş bir ayar değişikliği — yeniden yazım değil. `MOCK_DELAY_MS` ile
@@ -115,6 +116,26 @@ dışında hiçbir yer bunu bilmiyor — çağıranlar sadece `listDocuments()`,
 `getAnalysis()`, `appendMessage()` görüyor. Postgres'e geçmek tek dosyayı
 değiştirmek demek.
 
+### Gerçekten bir şey yakalayan testler
+
+19 birim testi (Vitest, ~200ms) ve 4 uçtan uca test (Playwright): yükle →
+brifing → sohbet → sil akışının tamamı, tema kalıcılığı ve PDF olmayan
+dosyanın reddedilmesi. CI her push'ta ikisini de çalıştırıyor.
+
+Birim testleri, test edilebilmesi için özellikle dışarı çıkarılmış saf
+fonksiyonları hedefliyor: `isMetadataFile()`, `hasEnoughText()`, sahipsiz
+dosya tespiti. Biri gerçekten yaşanmış bir hatanın gerileme testi: ".analysis.json
+olmasın" diye yazılmış bir filtre, sohbet özelliği ".messages.json" dosyalarını
+ekleyince sessizce bozuldu; bu dosyalar doküman kaydı sanılıp ana sayfa çöktü.
+Düzeltme filtreyi "sadece <id>.json kabul et"e çevirdi ve test, eski mantığın
+kaldığını kanıtlıyor.
+
+Uçtan uca testlerdeki kararsızlık üstü örtülerek değil, kaynağından çözüldü.
+`networkidle`, Vite geliştirme sunucusuna karşı güvenilmez çıktı (HMR websocket'i
+hiç durulmuyor); bunun yerine düzen dosyası hidratlanma bitince <html> etiketine
+`data-hydrated="true"` koyuyor ve testler onu bekliyor. Her çalışma benzersiz
+adlı bir dosya yüklüyor, böylece önceki çalışmadan artan veri çakışamıyor.
+
 ### Anahtarlar kazayla sızamaz
 
 `lib/server/` altındaki her şey SvelteKit tarafından derleme anında istemci
@@ -134,15 +155,19 @@ cp .env.example .env     # isteğe bağlı — anahtarsız da örnek veriyle ça
 npm run dev
 ```
 
-http://localhost:5177 adresini aç. `ANTHROPIC_API_KEY` yoksa uygulama örnek veri
-modunda çalışır ve bunu bir uyarıyla belirtir; anahtarı ekleyip yeniden
-başlattığında gerçek çıkarıma geçer. Kod değişikliği yok.
+http://localhost:5177 adresini aç. Kimlik bilgisi yoksa uygulama örnek veri
+modunda çalışır ve bunu bir uyarıyla belirtir. Gerçek çıkarıma geçmek için ya
+`ant auth login` çalıştır (OAuth — projeye hiçbir şey yazılmaz) ya da
+`ANTHROPIC_API_KEY` ayarla. İkisinde de: yeniden başlat, kod değişikliği yok.
 
 | Komut | |
 | --- | --- |
 | `npm run dev` | geliştirme sunucusu |
 | `npm run check` | tip kontrolü (`svelte-check`) |
 | `npm run build` | üretim derlemesi |
+| `npm run test` | birim + uçtan uca testler |
+| `npm run test:unit` | sadece birim testler (Vitest, ~200ms) |
+| `npm run test:e2e` | uçtan uca testler (Playwright) |
 | `npm run analyze -- dosya.pdf` | terminalden PDF analizi |
 | `npm run screenshots` | README görüntülerini yenile |
 
@@ -158,6 +183,7 @@ src/
 │       ├── +page.svelte           iki panel: PDF | brifing + sohbet
 │       ├── file/+server.ts        PDF baytlarını servis eder
 │       └── chat/+server.ts        akan sohbet ucu
+├── hooks.server.ts                açılışta sahipsiz dosyaları temizler
 └── lib/
     ├── components/                arayüz (shadcn-svelte + sohbet paneli)
     ├── types/                     ortak veri şekilleri (Zod şemaları)
@@ -167,6 +193,7 @@ src/
         ├── analysis/              brifing üretimi (mock ↔ Claude)
         ├── chat/                  akan cevaplar (mock ↔ Claude)
         └── anthropic/             istemci, talimatlar, sabitler
+e2e/                               Playwright uçtan uca testleri
 ```
 
 **Teknolojiler:** SvelteKit · TypeScript · Tailwind v4 · shadcn-svelte · Zod ·
@@ -185,13 +212,12 @@ Gizlendiği için değil, gerçek oldukları için listeleniyor.
 - **Kaynak referansları (citations) henüz gösterilmiyor.** API sayfa bazlı kaynak
   döndürüyor ama arayüz çizmiyor. `<iframe>` görüntüleyicinin pdf.js ile
   değiştirilmesi gerekiyor ki referansa tıklayınca o sayfaya atlansın.
-- **Yarıda kalan yüklemeler diskte artık dosya bırakabiliyor.** Uygulama görmüyor
-  ama temizlenmiyor.
-- **Otomatik test yok.** Akışlar uçtan uca elle ve terminal betiğiyle doğrulandı.
+- **Görsel gerileme testi yok.** Ekran görüntüleri üretiliyor ama
+  karşılaştırılmıyor.
 
 ## Yol haritası
 
 1. Gerçek çıkarımı bağla, analiz talimatlarını gerçek raporlarla ayarla
 2. Kaynak referanslarını göster; pdf.js ile sayfaya atlama
 3. Kalıcı depolama ve çok kullanıcı için Supabase
-4. Test paketi (Vitest + Playwright — Playwright zaten bağımlılıklarda)
+4. Canlı demo yayınla

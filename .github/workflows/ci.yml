@@ -1,4 +1,4 @@
-# Her push ve pull request'te kodun derlendiğini doğrular.
+# Her push ve pull request'te kodun derlendiğini VE çalıştığını doğrular.
 # Sonuç GitHub'da yeşil tik / kırmızı çarpı olarak görünür.
 
 name: CI
@@ -32,5 +32,32 @@ jobs:
       # 4. Tip kontrolü: TypeScript ve Svelte hataları
       - run: npm run check
 
-      # 5. Üretim derlemesi gerçekten çalışıyor mu
+      # 5. Birim testleri (saf mantık, milisaniyeler)
+      - run: npm run test:unit
+
+      # 6. Üretim derlemesi gerçekten çalışıyor mu
       - run: npm run build
+
+      # 7. Uçtan uca testler için tarayıcı kur.
+      #    --with-deps: Linux'ta tarayıcının ihtiyaç duyduğu sistem
+      #    kütüphanelerini de kurar (macOS'ta gerekmez, CI'da gerekir).
+      - run: npx playwright install --with-deps chromium
+
+      # 8. Uçtan uca testler: gerçek tarayıcıda tam akış.
+      #    Örnek veri modunda çalışır (playwright.config.ts), yani
+      #    CI hiçbir zaman gerçek AI'a istek atmaz — ücretsiz ve
+      #    her seferinde aynı sonucu verir.
+      - run: npm run test:e2e
+
+      # 9. Test başarısız olursa ekran görüntüsü ve iz kaydını sakla.
+      #    "if: failure()" -> sadece hata durumunda çalışır.
+      #    Hatayı görmeden çözmek zordur; bu dosyalar GitHub'dan
+      #    indirilebilir.
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: |
+            test-results/
+            playwright-report/
+          retention-days: 7

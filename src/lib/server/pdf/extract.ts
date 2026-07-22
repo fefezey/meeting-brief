@@ -23,6 +23,19 @@ export interface PdfInfo {
 const MIN_CHARS_PER_PAGE = 50;
 
 /**
+ * Çıkarılan metin miktarı, dosyanın "gerçekten metin içerdiği"
+ * sonucuna varmak için yeterli mi?
+ *
+ * Ayrı bir fonksiyon olmasının sebebi TEST EDİLEBİLİRLİK: bu kuralı
+ * denemek için gerçek bir PDF dosyasına ihtiyaç kalmıyor, sadece iki
+ * sayı veriyoruz. Saf fonksiyon = aynı girdi, hep aynı çıktı.
+ */
+export function hasEnoughText(textLength: number, pageCount: number): boolean {
+	if (pageCount <= 0) return false;
+	return textLength >= pageCount * MIN_CHARS_PER_PAGE;
+}
+
+/**
  * PDF baytlarını okuyup sayfa sayısı ve metin bilgisini döndürür.
  *
  * NOT: Bu metin, Claude'a GÖNDERİLEN şey değil — Claude PDF'in kendisini
@@ -53,7 +66,7 @@ export async function extractPdfInfo(pdfBytes: Uint8Array): Promise<PdfInfo> {
 	return {
 		pageCount: totalPages,
 		text: cleaned,
-		hasExtractableText: cleaned.length >= totalPages * MIN_CHARS_PER_PAGE
+		hasExtractableText: hasEnoughText(cleaned.length, totalPages)
 	};
 }
 
