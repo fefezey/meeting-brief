@@ -7,7 +7,7 @@
 You have a 60-page quarterly report and a meeting in 10 minutes. This tool reads
 it and hands you a briefing: what it says, what's risky, and what to ask.
 
-![Document view](./docs/screenshots/document-light.png)
+![Document view](./docs/screenshots/document-dark.png)
 
 ---
 
@@ -116,6 +116,22 @@ perceived speed.
 Documents live on disk (`.data/`) as PDF + JSON. Nothing outside
 `lib/server/storage/` knows that — callers only see `listDocuments()`,
 `getAnalysis()`, `appendMessage()`. Swapping in Postgres changes one file.
+
+### Design as a product decision
+
+Dark by default, near-black anthracite (`#0F1115`) with quiet glass surfaces.
+The primary button is warm off-white rather than a saturated accent — a bright
+button reads as "app", a restrained one reads as "instrument". Blue and cyan
+appear only where they carry meaning: focus rings, status, the light passing
+through the hero.
+
+The briefing panel deliberately avoids cards-in-a-grid. Boxes read as a
+dashboard; generous whitespace with hairline section labels reads as a document,
+which is what a person about to walk into a meeting actually wants.
+
+The hero visual is CSS-only — layered translucent panels, insight cards drifting
+out from between them, a slow light sweep. No images to load, no library, and it
+honours `prefers-reduced-motion` for free.
 
 ### Tests that actually catch things
 

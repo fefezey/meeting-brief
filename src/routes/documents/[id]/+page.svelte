@@ -1,10 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
-	import { Button } from '$lib/components/ui/button';
-	import * as Card from '$lib/components/ui/card';
-	import { Badge } from '$lib/components/ui/badge';
-	import { Separator } from '$lib/components/ui/separator';
 	import * as Tabs from '$lib/components/ui/tabs';
 	import ChatPanel from '$lib/components/chat/ChatPanel.svelte';
 	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
@@ -12,35 +8,19 @@
 
 	let { data }: { data: PageData } = $props();
 
-	// $derived = başka bir değerden TÜRETİLEN değer.
-	// data.doc.status her değiştiğinde bu da otomatik güncellenir.
 	let isAnalyzing = $derived(data.doc.status === 'analyzing');
-
-	// Bekleme süresini saniye olarak göstermek için
 	let elapsedSeconds = $state(0);
 
-	/*
-	 * $effect = "bağımlı olduğu değerler değişince çalış" bloğu.
-	 *
-	 * Burada iki iş yapıyor:
-	 *   1. Her 2 saniyede bir invalidateAll() çağırıp sunucudan
-	 *      güncel durumu ister (analiz bitti mi?)
-	 *   2. Geçen süreyi sayar
-	 *
-	 * return ile döndürülen fonksiyon TEMİZLİK fonksiyonudur:
-	 * durum değişince veya kullanıcı sayfadan çıkınca çalışır.
-	 * Olmazsa zamanlayıcılar arka planda sonsuza kadar döner
-	 * (bellek sızıntısı).
-	 */
+	// Analiz sürerken 2 saniyede bir sunucuya sor; bitince dur.
+	// return ile dönen fonksiyon temizlik yapar — olmazsa zamanlayıcılar
+	// sayfadan çıkıldıktan sonra da dönmeye devam eder.
 	$effect(() => {
 		if (!isAnalyzing) {
 			elapsedSeconds = 0;
 			return;
 		}
-
 		const tick = setInterval(() => elapsedSeconds++, 1000);
 		const poll = setInterval(() => invalidateAll(), 2000);
-
 		return () => {
 			clearInterval(tick);
 			clearInterval(poll);
@@ -48,10 +28,13 @@
 	});
 
 	const severityLabel = { high: 'Yüksek', medium: 'Orta', low: 'Düşük' } as const;
-	const severityVariant = {
-		high: 'destructive',
-		medium: 'default',
-		low: 'secondary'
+
+	// Renk yerine YOĞUNLUK ile ayırıyoruz. Üç farklı renk kullanmak
+	// arayüzü gürültülü yapardı; aynı ailede üç ton sakin kalıyor.
+	const severityDot = {
+		high: 'bg-destructive',
+		medium: 'bg-foreground/55',
+		low: 'bg-muted-foreground/40'
 	} as const;
 
 	function formatSize(bytes: number) {
@@ -60,30 +43,34 @@
 	}
 
 	function formatElapsed(seconds: number) {
-		if (seconds < 60) return `${seconds} sn`;
+		if (seconds < 60) return `${seconds} saniye`;
 		return `${Math.floor(seconds / 60)} dk ${seconds % 60} sn`;
 	}
 </script>
 
 <div class="flex h-screen flex-col">
-	<!-- Üst çubuk -->
-	<header class="border-border flex items-center gap-4 border-b px-4 py-3">
-		<a href="/" class="text-muted-foreground hover:text-foreground text-sm">← Geri</a>
+	<!-- ══ ÜST ÇUBUK ══ İnce, sessiz, yolunuzdan çekiliyor -->
+	<header class="flex shrink-0 items-center gap-5 px-5 py-4">
+		<a
+			href="/"
+			class="text-muted-foreground hover:text-foreground ease-cinematic
+			       text-sm transition-colors duration-300"
+		>
+			← Geri
+		</a>
 		<div class="min-w-0 flex-1">
-			<h1 class="truncate font-medium">{data.doc.title}</h1>
-			<p class="text-muted-foreground text-xs">
+			<h1 class="truncate text-sm font-medium">{data.doc.title}</h1>
+			<p class="text-muted-foreground mt-0.5 text-xs">
 				{data.doc.pageCount ?? '?'} sayfa · {formatSize(data.doc.sizeBytes)}
+				{#if data.usingMock}· Örnek veri{/if}
 			</p>
 		</div>
-		{#if data.usingMock}
-			<Badge variant="outline">Örnek veri</Badge>
-		{/if}
 		<ThemeToggle />
 	</header>
 
-	<div class="flex min-h-0 flex-1 flex-col md:flex-row">
-		<!-- SOL: PDF görüntüleyici -->
-		<div class="border-border bg-muted min-h-[50vh] flex-1 md:min-h-0 md:border-r">
+	<div class="flex min-h-0 flex-1 flex-col gap-4 px-5 pb-5 lg:flex-row">
+		<!-- ══ SOL: BELGE ══ -->
+		<div class="glass min-h-[45vh] flex-1 overflow-hidden rounded-[22px] lg:min-h-0">
 			{#if data.doc.hasExtractableText}
 				<iframe
 					src="/documents/{data.doc.id}/file"
@@ -91,170 +78,192 @@
 					class="h-full w-full"
 				></iframe>
 			{:else}
-				<div class="flex h-full flex-col items-center justify-center gap-2 p-8 text-center">
-					<p class="font-medium">Bu PDF taranmış görünüyor</p>
-					<p class="text-muted-foreground max-w-sm text-sm">
-						Dosyadan metin çıkarılamadı — muhtemelen sayfalar fotoğraf olarak
-						kaydedilmiş. Yine de görüntüleyebilirsin.
+				<div class="flex h-full flex-col items-center justify-center gap-3 p-10 text-center">
+					<p class="text-sm font-medium">Bu belge taranmış görünüyor</p>
+					<p class="text-muted-foreground max-w-xs text-sm leading-relaxed">
+						Dosyadan metin çıkarılamadı — sayfalar muhtemelen fotoğraf olarak
+						kaydedilmiş.
 					</p>
 					<a
 						href="/documents/{data.doc.id}/file"
 						target="_blank"
 						rel="noreferrer"
-						class="text-sm underline underline-offset-4"
+						class="text-muted-foreground hover:text-foreground mt-1 text-sm
+						       underline underline-offset-4 transition-colors"
 					>
-						PDF'i yeni sekmede aç
+						Yeni sekmede aç
 					</a>
 				</div>
 			{/if}
 		</div>
 
-		<!-- SAĞ: Analiz + sohbet paneli -->
-		<aside
-			class="flex min-h-0 w-full shrink-0 flex-col p-4 md:w-[26rem] lg:w-[30rem]"
-		>
+		<!-- ══ SAĞ: BRİFİNG ══ -->
+		<aside class="glass flex w-full shrink-0 flex-col rounded-[22px] lg:w-[27rem] xl:w-[31rem]">
 			{#if isAnalyzing}
-				<!-- BEKLEME DURUMU -->
-				<Card.Root>
-					<Card.Content class="flex flex-col items-center gap-3 py-10 text-center">
-						<!-- animate-spin = Tailwind'in sürekli döndürme animasyonu -->
-						<div
-							class="border-muted-foreground/30 border-t-foreground size-6
-							       animate-spin rounded-full border-2"
-						></div>
-						<p class="font-medium">Analiz ediliyor…</p>
-						<p class="text-muted-foreground max-w-xs text-sm">
-							{#if data.usingMock}
-								Örnek veri üretiliyor.
-							{:else}
-								Uzun raporlarda 1-2 dakika sürebilir. Bu sayfada
-								kalabilirsin, sonuç hazır olunca kendiliğinden görünecek.
-							{/if}
-						</p>
-						<p class="text-muted-foreground text-xs">
-							Geçen süre: {formatElapsed(elapsedSeconds)}
-						</p>
-					</Card.Content>
-				</Card.Root>
+				<!-- Bekleme: dönen çark yerine yavaşça nefes alan bir nokta.
+				     Çark "yükleniyor" der; bu "düşünüyor" der. -->
+				<div class="flex flex-1 flex-col items-center justify-center gap-4 p-10 text-center">
+					<span class="relative flex size-2">
+						<span
+							class="absolute inline-flex size-full animate-ping rounded-full
+							       bg-[color:var(--glow)] opacity-60"
+						></span>
+						<span
+							class="relative inline-flex size-2 rounded-full bg-[color:var(--glow)]"
+						></span>
+					</span>
+					<p class="text-sm font-medium">Okunuyor</p>
+					<p class="text-muted-foreground max-w-[16rem] text-sm leading-relaxed">
+						{#if data.usingMock}
+							Örnek veri üretiliyor.
+						{:else}
+							Uzun belgelerde birkaç dakika sürebilir. Sonuç hazır olunca
+							kendiliğinden görünecek.
+						{/if}
+					</p>
+					<p class="text-muted-foreground/60 text-xs">{formatElapsed(elapsedSeconds)}</p>
+				</div>
 			{:else if data.doc.status === 'failed'}
-				<!-- HATA DURUMU -->
-				<Card.Root>
-					<Card.Header>
-						<Card.Title>Analiz başarısız</Card.Title>
-					</Card.Header>
-					<Card.Content class="space-y-4">
-						<p class="text-muted-foreground text-sm">
-							{data.doc.errorMessage ?? 'Bilinmeyen bir hata oluştu.'}
-						</p>
-						<!-- PDF zaten diskte; baştan yüklemeye gerek yok -->
-						<form method="POST" action="?/retry" use:enhance>
-							<Button type="submit" variant="outline">Yeniden dene</Button>
-						</form>
-					</Card.Content>
-				</Card.Root>
+				<div class="flex flex-1 flex-col items-center justify-center gap-4 p-10 text-center">
+					<p class="text-sm font-medium">Analiz tamamlanamadı</p>
+					<p class="text-muted-foreground max-w-[18rem] text-sm leading-relaxed">
+						{data.doc.errorMessage ?? 'Bilinmeyen bir hata oluştu.'}
+					</p>
+					<!-- Belge zaten diskte; baştan yüklemeye gerek yok -->
+					<form method="POST" action="?/retry" use:enhance>
+						<button
+							type="submit"
+							class="ease-cinematic bg-primary text-primary-foreground mt-1 rounded-full
+							       px-5 py-2 text-sm font-medium transition-opacity duration-300
+							       hover:opacity-90"
+						>
+							Yeniden dene
+						</button>
+					</form>
+				</div>
 			{:else if !data.analysis}
-				<p class="text-muted-foreground text-sm">Analiz henüz hazır değil.</p>
+				<p class="text-muted-foreground p-10 text-sm">Analiz henüz hazır değil.</p>
 			{:else}
-				<!-- SONUÇ: iki sekme — Analiz ve Sohbet -->
-				<Tabs.Root value="analysis" class="flex min-h-0 flex-1 flex-col">
-					<Tabs.List class="w-full">
-						<Tabs.Trigger value="analysis" class="flex-1">Analiz</Tabs.Trigger>
-						<Tabs.Trigger value="chat" class="flex-1">Sohbet</Tabs.Trigger>
+				<Tabs.Root value="analysis" class="flex min-h-0 flex-1 flex-col gap-0">
+					<!--
+						Sekmeler: kutu değil, iki kelime ve altında ince bir çizgi.
+
+						variant="line" bileşenin kendi sade varyantı — alt çizgiyi
+						ve aktif rengi o yönetiyor. Bizim eklediğimiz tek şey
+						hizalama: flex-none olmadan tetikleyiciler flex-1 alıp
+						tüm genişliğe eşit bölünüyordu.
+					-->
+					<Tabs.List
+						variant="line"
+						class="h-auto w-full justify-start gap-7 border-b border-[color:var(--border)]
+						       px-6 pt-5 pb-0 [&>button]:flex-none [&>button]:px-0 [&>button]:pb-3"
+					>
+						<Tabs.Trigger value="analysis" class="text-sm font-medium">
+							Brifing
+						</Tabs.Trigger>
+						<Tabs.Trigger value="chat" class="text-sm font-medium">Sohbet</Tabs.Trigger>
 					</Tabs.List>
 
-					<!-- min-h-0 = "içeriğin taşmasına izin ver, kaydırma çubuğu çıksın".
-					     Bu olmadan flex kutular içeriği sonsuza kadar uzatır. -->
-					<Tabs.Content value="analysis" class="min-h-0 flex-1 overflow-y-auto pt-2">
-						<div class="space-y-4">
-					<Card.Root>
-						<Card.Header>
-							<Card.Title>Özet</Card.Title>
-						</Card.Header>
-						<Card.Content>
-							<p class="text-sm leading-relaxed">{data.analysis.summary}</p>
-						</Card.Content>
-					</Card.Root>
+					<!-- ── BRİFİNG ──
+					     Kutular yerine bol boşlukla ayrılmış bölümler.
+					     Kutu "dashboard", boşluk "belge" hissi verir. -->
+					<Tabs.Content value="analysis" class="min-h-0 flex-1 overflow-y-auto px-6 py-7">
+						<div class="space-y-10">
+							<section>
+								<p class="text-[0.95rem] leading-[1.7]">{data.analysis.summary}</p>
+							</section>
 
-					<Card.Root>
-						<Card.Header>
-							<Card.Title>Ana maddeler</Card.Title>
-						</Card.Header>
-						<Card.Content>
-							<ul class="space-y-2 text-sm">
-								{#each data.analysis.keyPoints as point, i (i)}
-									<li class="flex gap-2">
-										<span class="text-muted-foreground shrink-0">{i + 1}.</span>
-										<span>{point}</span>
-									</li>
-								{/each}
-							</ul>
-						</Card.Content>
-					</Card.Root>
+							<section>
+								<h2
+									class="text-muted-foreground mb-4 text-[0.7rem] tracking-[0.12em] uppercase"
+								>
+									Ana maddeler
+								</h2>
+								<ul class="space-y-3">
+									{#each data.analysis.keyPoints as point, i (i)}
+										<li class="flex gap-3 text-sm leading-relaxed">
+											<span class="text-muted-foreground/50 shrink-0 tabular-nums">
+												{String(i + 1).padStart(2, '0')}
+											</span>
+											<span>{point}</span>
+										</li>
+									{/each}
+								</ul>
+							</section>
 
-					{#if data.analysis.keyFigures.length > 0}
-						<Card.Root>
-							<Card.Header>
-								<Card.Title>Kilit rakamlar</Card.Title>
-							</Card.Header>
-							<Card.Content class="space-y-3">
-								{#each data.analysis.keyFigures as figure, i (i)}
-									{#if i > 0}<Separator />{/if}
-									<div class="space-y-0.5">
-										<div class="flex items-baseline justify-between gap-3">
-											<span class="text-muted-foreground text-sm">{figure.label}</span>
-											<span class="font-medium">{figure.value}</span>
-										</div>
-										<p class="text-muted-foreground text-xs">{figure.context}</p>
+							{#if data.analysis.keyFigures.length > 0}
+								<section>
+									<h2
+										class="text-muted-foreground mb-4 text-[0.7rem] tracking-[0.12em] uppercase"
+									>
+										Kilit rakamlar
+									</h2>
+									<div class="space-y-4">
+										{#each data.analysis.keyFigures as figure, i (i)}
+											<div class="space-y-1">
+												<div class="flex items-baseline justify-between gap-4">
+													<span class="text-muted-foreground text-sm">{figure.label}</span>
+													<!-- tabular-nums: rakamlar eşit genişlikte, alt alta hizalı -->
+													<span class="text-sm font-medium tabular-nums">{figure.value}</span>
+												</div>
+												<p class="text-muted-foreground/70 text-xs leading-relaxed">
+													{figure.context}
+												</p>
+											</div>
+										{/each}
 									</div>
-								{/each}
-							</Card.Content>
-						</Card.Root>
-					{/if}
+								</section>
+							{/if}
 
-					{#if data.analysis.risks.length > 0}
-						<Card.Root>
-							<Card.Header>
-								<Card.Title>Riskli noktalar</Card.Title>
-							</Card.Header>
-							<Card.Content class="space-y-3">
-								{#each data.analysis.risks as risk, i (i)}
-									{#if i > 0}<Separator />{/if}
-									<div class="space-y-1">
-										<div class="flex items-start justify-between gap-2">
-											<span class="text-sm font-medium">{risk.title}</span>
-											<Badge variant={severityVariant[risk.severity]} class="shrink-0">
-												{severityLabel[risk.severity]}
-											</Badge>
-										</div>
-										<p class="text-muted-foreground text-sm">{risk.detail}</p>
-										{#if risk.pageHint}
-											<p class="text-muted-foreground text-xs">Sayfa {risk.pageHint}</p>
-										{/if}
+							{#if data.analysis.risks.length > 0}
+								<section>
+									<h2
+										class="text-muted-foreground mb-4 text-[0.7rem] tracking-[0.12em] uppercase"
+									>
+										Riskli noktalar
+									</h2>
+									<div class="space-y-5">
+										{#each data.analysis.risks as risk, i (i)}
+											<div>
+												<div class="flex items-center gap-2.5">
+													<span class="size-1.5 shrink-0 rounded-full {severityDot[risk.severity]}"
+													></span>
+													<span class="text-sm font-medium">{risk.title}</span>
+													<span class="text-muted-foreground/60 ml-auto shrink-0 text-xs">
+														{severityLabel[risk.severity]}
+														{#if risk.pageHint}· s.{risk.pageHint}{/if}
+													</span>
+												</div>
+												<p class="text-muted-foreground mt-1.5 pl-[1.05rem] text-sm leading-relaxed">
+													{risk.detail}
+												</p>
+											</div>
+										{/each}
 									</div>
-								{/each}
-							</Card.Content>
-						</Card.Root>
-					{/if}
+								</section>
+							{/if}
 
-					<Card.Root>
-						<Card.Header>
-							<Card.Title>Toplantıda sorulabilecek sorular</Card.Title>
-						</Card.Header>
-						<Card.Content>
-							<ul class="space-y-2 text-sm">
-								{#each data.analysis.suggestedQuestions as question, i (i)}
-									<li class="flex gap-2">
-										<span class="text-muted-foreground shrink-0">{i + 1}.</span>
-										<span>{question}</span>
-									</li>
-								{/each}
-							</ul>
-						</Card.Content>
-						</Card.Root>
+							<section>
+								<h2
+									class="text-muted-foreground mb-4 text-[0.7rem] tracking-[0.12em] uppercase"
+								>
+									Sorulabilecek sorular
+								</h2>
+								<ul class="space-y-3">
+									{#each data.analysis.suggestedQuestions as question, i (i)}
+										<li class="flex gap-3 text-sm leading-relaxed">
+											<span class="text-muted-foreground/50 shrink-0 tabular-nums">
+												{String(i + 1).padStart(2, '0')}
+											</span>
+											<span>{question}</span>
+										</li>
+									{/each}
+								</ul>
+							</section>
 						</div>
 					</Tabs.Content>
 
-					<Tabs.Content value="chat" class="min-h-0 flex-1 pt-2">
+					<Tabs.Content value="chat" class="min-h-0 flex-1 px-6 pt-5 pb-6">
 						<ChatPanel
 							documentId={data.doc.id}
 							initialMessages={data.messages}

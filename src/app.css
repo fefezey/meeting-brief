@@ -1,92 +1,118 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
 
-/* "dark:" ön ekinin ne zaman devreye gireceğini belirler:
-   <html> etiketine "dark" sınıfı eklendiğinde. */
+/* Inter Variable — kendi sunucumuzdan servis edilir, dış bağlantı yok.
+   "Variable" = tek dosyada tüm kalınlıklar (300-700 arası her değer). */
+@import '@fontsource-variable/inter';
+
 @custom-variant dark (&:is(.dark *));
 
-/* ---------------------------------------------------------------
-   AÇIK TEMA
-   Renkler oklch() ile yazılıyor: insan gözünün algıladığı parlaklığa
-   göre çalışan modern renk formatı. Aynı parlaklıkta farklı tonlar
-   üretmek hex'e göre çok daha kolay.
-   --------------------------------------------------------------- */
+/* ═══════════════════════════════════════════════════════════════════
+   AÇIK TEMA — aynı sakinlik, ters çevrilmiş
+   Saf beyaz yerine hafif sıcak bir kağıt tonu: gözü yormaz,
+   koyu temayla aynı karakteri taşır.
+   ═══════════════════════════════════════════════════════════════════ */
 :root {
-	--radius: 0.625rem; /* köşe yuvarlaklığı */
+	--radius: 0.875rem; /* 14px — düğmeler ve küçük yüzeyler */
+	--radius-card: 1.375rem; /* 22px — kartlar, geniş yüzeyler */
 
-	--background: oklch(1 0 0); /* sayfa zemini (beyaz) */
-	--foreground: oklch(0.141 0.005 285.823); /* ana yazı rengi */
+	--background: #fbfbfc;
+	--foreground: #14171d;
 
-	--card: oklch(1 0 0); /* kart zemini */
-	--card-foreground: oklch(0.141 0.005 285.823);
+	--card: #ffffff;
+	--card-foreground: #14171d;
 
-	--popover: oklch(1 0 0); /* açılır kutu zemini */
-	--popover-foreground: oklch(0.141 0.005 285.823);
+	--popover: #ffffff;
+	--popover-foreground: #14171d;
 
-	--primary: oklch(0.21 0.006 285.885); /* ana vurgu (buton zemini) */
-	--primary-foreground: oklch(0.985 0 0); /* vurgu üstündeki yazı */
+	--primary: #171a21;
+	--primary-foreground: #fbfbfc;
 
-	--secondary: oklch(0.967 0.001 286.375); /* ikincil vurgu */
-	--secondary-foreground: oklch(0.21 0.006 285.885);
+	--secondary: #f1f2f5;
+	--secondary-foreground: #14171d;
 
-	--muted: oklch(0.967 0.001 286.375); /* soluk zemin */
-	--muted-foreground: oklch(0.552 0.016 285.938); /* soluk yazı */
+	--muted: #f4f5f7;
+	--muted-foreground: #656c7a;
 
-	--accent: oklch(0.967 0.001 286.375); /* üzerine gelince vb. */
-	--accent-foreground: oklch(0.21 0.006 285.885);
+	--accent: #f1f2f5;
+	--accent-foreground: #14171d;
 
-	--destructive: oklch(0.577 0.245 27.325); /* tehlike / silme (kırmızı) */
-	--destructive-foreground: oklch(0.985 0 0);
+	--destructive: #c8494c;
+	--destructive-foreground: #ffffff;
 
-	--border: oklch(0.92 0.004 286.32); /* çizgiler */
-	--input: oklch(0.92 0.004 286.32); /* form kutusu kenarı */
-	--ring: oklch(0.705 0.015 286.067); /* odak halkası */
+	--border: rgb(20 23 29 / 0.08);
+	--input: rgb(20 23 29 / 0.12);
+	--ring: #2f7fe0;
+
+	--glow: #2f7fe0;
+	--glow-soft: #2a9db0;
+	--glass: rgb(255 255 255 / 0.7);
+	--glass-edge: rgb(20 23 29 / 0.06);
 }
 
-/* ---------------------------------------------------------------
-   KARANLIK TEMA
-   Aynı rol isimleri, farklı değerler. Bileşen kodu hiç değişmiyor.
-   --------------------------------------------------------------- */
+/* ═══════════════════════════════════════════════════════════════════
+   KARANLIK TEMA — ürünün ASIL kimliği
+   ═══════════════════════════════════════════════════════════════════
+   Renk felsefesi: zeminde neredeyse hiç renk yok (nötr antrasit),
+   renk sadece anlam taşıdığı yerde beliriyor. Bu, arayüzün sakin
+   kalmasını ve içeriğin öne çıkmasını sağlar.
+
+   Parlak renkli bir ana buton "uygulama" hissi verir; kırık beyaz
+   ise sakin bir otorite hissi verir — Linear ve Arc'ın yaklaşımı.
+   Mavi/camgöbeği vurguda, odakta ve ışık efektlerinde kullanılıyor.
+   ═══════════════════════════════════════════════════════════════════ */
 .dark {
-	--background: oklch(0.141 0.005 285.823);
-	--foreground: oklch(0.985 0 0);
+	--background: #0f1115; /* çok koyu antrasit */
+	--foreground: #eceef3; /* kırık beyaz */
 
-	--card: oklch(0.21 0.006 285.885);
-	--card-foreground: oklch(0.985 0 0);
+	--card: #171a21; /* koyu gri yüzey */
+	--card-foreground: #eceef3;
 
-	--popover: oklch(0.21 0.006 285.885);
-	--popover-foreground: oklch(0.985 0 0);
+	--popover: #1b1f27;
+	--popover-foreground: #eceef3;
 
-	--primary: oklch(0.92 0.004 286.32);
-	--primary-foreground: oklch(0.21 0.006 285.885);
+	/* Ana eylem: sıcak kırık beyaz, üzerinde koyu yazı */
+	--primary: #edeff4;
+	--primary-foreground: #0f1115;
 
-	--secondary: oklch(0.274 0.006 286.033);
-	--secondary-foreground: oklch(0.985 0 0);
+	--secondary: #20242d;
+	--secondary-foreground: #dfe3ea;
 
-	--muted: oklch(0.274 0.006 286.033);
-	--muted-foreground: oklch(0.705 0.015 286.067);
+	--muted: #1b1f27;
+	--muted-foreground: #8b93a3; /* ikincil yazı — okunabilir ama geri planda */
 
-	--accent: oklch(0.274 0.006 286.033);
-	--accent-foreground: oklch(0.985 0 0);
+	--accent: #1e232c;
+	--accent-foreground: #eceef3;
 
-	--destructive: oklch(0.704 0.191 22.216);
-	--destructive-foreground: oklch(0.985 0 0);
+	/* Tehlike: neon değil, tozlu mercan */
+	--destructive: #e2797b;
+	--destructive-foreground: #0f1115;
 
-	--border: oklch(1 0 0 / 10%);
-	--input: oklch(1 0 0 / 15%);
-	--ring: oklch(0.552 0.016 285.938);
+	/* Kenarlıklar KALIN DEĞİL — sadece yüzeyleri ayıran bir fısıltı */
+	--border: rgb(255 255 255 / 0.07);
+	--input: rgb(255 255 255 / 0.09);
+
+	/* Odak halkası: yumuşak elektrik mavisi */
+	--ring: #6aa6ff;
+
+	/* --- Ürüne özel vurgular --- */
+	--glow: #6aa6ff; /* yumuşak elektrik mavisi */
+	--glow-soft: #7fd3e2; /* hafif turkuaz / camgöbeği */
+	--glass: rgb(255 255 255 / 0.04); /* cam yüzey dolgusu */
+	--glass-edge: rgb(255 255 255 / 0.08); /* cam kenarı */
 }
 
-/* ---------------------------------------------------------------
-   Yukarıdaki değişkenleri Tailwind sınıflarına bağlar.
-   Bu blok sayesinde "bg-primary", "text-muted-foreground",
-   "border-border" gibi sınıflar kullanılabilir hale gelir.
-   --------------------------------------------------------------- */
+/* Değişkenleri Tailwind sınıflarına bağlar:
+   --color-card  ->  bg-card, text-card, border-card ... */
 @theme inline {
-	--radius-sm: calc(var(--radius) - 4px);
-	--radius-md: calc(var(--radius) - 2px);
+	--font-sans:
+		'Inter Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+	--radius-sm: calc(var(--radius) - 6px);
+	--radius-md: calc(var(--radius) - 3px);
 	--radius-lg: var(--radius);
-	--radius-xl: calc(var(--radius) + 4px);
+	--radius-xl: var(--radius-card);
+	--radius-2xl: calc(var(--radius-card) + 6px);
 
 	--color-background: var(--background);
 	--color-foreground: var(--foreground);
@@ -107,14 +133,93 @@
 	--color-border: var(--border);
 	--color-input: var(--input);
 	--color-ring: var(--ring);
+
+	--color-glow: var(--glow);
+	--color-glow-soft: var(--glow-soft);
+	--color-glass: var(--glass);
+	--color-glass-edge: var(--glass-edge);
 }
 
-/* Tüm sayfa için varsayılanlar */
 @layer base {
 	* {
 		@apply border-border;
 	}
+
+	html {
+		/* Bağlantı tıklamalarında yumuşak kaydırma */
+		scroll-behavior: smooth;
+	}
+
 	body {
 		@apply bg-background text-foreground;
+		/* Ekranda daha ince ve net harfler (macOS'ta belirgin fark) */
+		-webkit-font-smoothing: antialiased;
+		-moz-osx-font-smoothing: grayscale;
+		/* Inter'in sekmeli rakamları: sayılar hizalı kalır */
+		font-feature-settings: 'cv02', 'cv03', 'cv04', 'tnum';
+	}
+
+	/* Başlıklar: büyük, sıkı harf aralığı — güçlü ama gürültüsüz */
+	h1,
+	h2,
+	h3 {
+		letter-spacing: -0.022em;
+	}
+
+	/* Odak halkası: klavyeyle gezen kullanıcı için görünür,
+	   fareyle tıklayanı rahatsız etmeyecek şekilde */
+	:focus-visible {
+		outline: 2px solid var(--ring);
+		outline-offset: 2px;
+	}
+}
+
+@layer components {
+	/* ---- CAM YÜZEY ----
+	   İnce cam hissi: hafif dolgu + bulanıklık + tek piksellik kenar.
+	   Kalın kenarlık yok; yüzeyi ayıran şey ışık, çizgi değil. */
+	.glass {
+		background: var(--glass);
+		backdrop-filter: blur(20px) saturate(140%);
+		-webkit-backdrop-filter: blur(20px) saturate(140%);
+		border: 1px solid var(--glass-edge);
+	}
+
+	/* ---- YUMUŞAK GÖLGE ----
+	   Tek keskin gölge yerine üç katman: yakın/orta/uzak.
+	   Gerçek ışık böyle davranır, sonuç "yüzen" hissi verir. */
+	.shadow-soft {
+		box-shadow:
+			0 1px 2px rgb(0 0 0 / 0.16),
+			0 8px 24px rgb(0 0 0 / 0.18),
+			0 24px 64px rgb(0 0 0 / 0.16);
+	}
+
+	.shadow-lift {
+		box-shadow:
+			0 2px 4px rgb(0 0 0 / 0.2),
+			0 16px 40px rgb(0 0 0 / 0.24),
+			0 40px 96px rgb(0 0 0 / 0.2);
+	}
+
+	/* ---- SİNEMATİK GEÇİŞ ----
+	   Yavaş ve yumuşak. cubic-bezier eğrisi hızlı başlayıp uzun
+	   yavaşlayarak biter — Apple tanıtımlarındaki his budur. */
+	.ease-cinematic {
+		transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+	}
+}
+
+/* Hareketi azaltma tercihi olan kullanıcılar için tüm animasyonları
+   neredeyse durdur. Erişilebilirlik açısından zorunlu: hareket bazı
+   kişilerde baş dönmesi ve mide bulantısı yapar. */
+@media (prefers-reduced-motion: reduce) {
+	*,
+	*::before,
+	*::after {
+		animation-duration: 0.01ms !important;
+		animation-iteration-count: 1 !important;
+		transition-duration: 0.01ms !important;
+		scroll-behavior: auto !important;
 	}
 }

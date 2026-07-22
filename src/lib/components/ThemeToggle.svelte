@@ -1,20 +1,15 @@
 <script lang="ts">
-	import { Button } from '$lib/components/ui/button';
-	import Sun from '@lucide/svelte/icons/sun';
-	import Moon from '@lucide/svelte/icons/moon';
-
 	/**
 	 * Açık/karanlık tema düğmesi.
 	 *
-	 * Tema, <html> etiketine "dark" sınıfı eklenip çıkarılarak
-	 * değiştiriliyor — app.css'teki .dark bloğu böyle devreye giriyor.
-	 * Tercih localStorage'a kaydediliyor ki sonraki ziyarette hatırlansın.
+	 * İkonlar elle çizilmiş SVG — ikon kütüphanesi yerine.
+	 * Neden? İki ikon için paket bağımlılığı taşımak gereksiz; ayrıca
+	 * çizgi kalınlığını tasarımın geri kalanıyla birebir eşleştirebiliyoruz.
 	 */
+	let isDark = $state(true);
 
-	let isDark = $state(false);
-
-	// $effect ilk çizimden SONRA çalışır; o an "dark" sınıfı
-	// app.html'deki koddan dolayı zaten doğru durumda olur.
+	// $effect ilk çizimden sonra çalışır; o an sınıf app.html'deki
+	// koddan dolayı zaten doğru durumdadır.
 	$effect(() => {
 		isDark = document.documentElement.classList.contains('dark');
 	});
@@ -26,16 +21,30 @@
 	}
 </script>
 
-<Button
-	variant="ghost"
-	size="icon"
+<button
+	type="button"
 	onclick={toggle}
 	aria-label={isDark ? 'Açık temaya geç' : 'Karanlık temaya geç'}
 	title={isDark ? 'Açık tema' : 'Karanlık tema'}
+	class="text-muted-foreground hover:text-foreground ease-cinematic rounded-full
+	       p-2 transition-colors duration-300"
 >
-	{#if isDark}
-		<Sun />
-	{:else}
-		<Moon />
-	{/if}
-</Button>
+	<svg
+		viewBox="0 0 24 24"
+		fill="none"
+		stroke="currentColor"
+		stroke-width="1.5"
+		stroke-linecap="round"
+		class="size-[18px]"
+		aria-hidden="true"
+	>
+		{#if isDark}
+			<!-- Güneş: açık temaya geçiş -->
+			<circle cx="12" cy="12" r="4" />
+			<path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M18.4 5.6L17 7M7 17l-1.4 1.4" />
+		{:else}
+			<!-- Ay: karanlık temaya geçiş -->
+			<path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z" />
+		{/if}
+	</svg>
+</button>

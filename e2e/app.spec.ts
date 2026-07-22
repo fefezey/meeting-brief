@@ -65,8 +65,9 @@ async function openHome(page: import('@playwright/test').Page) {
 test('ana sayfa açılıyor ve örnek veri modunu belirtiyor', async ({ page }) => {
 	await openHome(page);
 
-	await expect(page.getByRole('heading', { name: 'Doküman Analiz' })).toBeVisible();
-	await expect(page.getByText('Örnek veri modu.', { exact: true })).toBeVisible();
+	// Hero başlığı (h1) — ürünün ilk mesajı
+	await expect(page.getByRole('heading', { level: 1 })).toContainText('Uzun belgeler');
+	await expect(page.getByText('Örnek veri modu')).toBeVisible();
 	await expect(page.getByText('Dosya seçmek için tıkla')).toBeVisible();
 });
 
@@ -97,7 +98,7 @@ test('tam akış: yükle → analiz → sohbet → sil', async ({ page }) => {
 	// Seçiciyi label'ın İÇİNE kısıtlıyoruz: aynı ad listede de
 	// görünebilir, o zaman "hangisi?" belirsizliği doğar.
 	await expect(page.locator('label').getByText(fileName)).toBeVisible();
-	await page.getByRole('button', { name: 'Yükle ve analiz et' }).click();
+	await page.getByRole('button', { name: 'Analiz et' }).click();
 
 	// Yükleme bizi doküman sayfasına yönlendirmeli
 	await expect(page).toHaveURL(/\/documents\/[a-f0-9-]+$/);
@@ -109,21 +110,21 @@ test('tam akış: yükle → analiz → sohbet → sil', async ({ page }) => {
 	   otomatik tazeleme mekanizması.                                  */
 	/*
 	   exact: true ŞART. Playwright'ın getByText'i varsayılan olarak
-	   büyük/küçük harf ayırmadan "içinde geçiyor mu" diye bakar.
-	   'Özet' aramak, özet METNİNİN içindeki "yönetici özeti" ifadesine
-	   de denk geliyor ve "hangisini kastettin?" hatası veriyordu.    */
-	await expect(page.getByText('Özet', { exact: true })).toBeVisible({ timeout: 60_000 });
-	await expect(page.getByText('Ana maddeler', { exact: true })).toBeVisible();
+	   büyük/küçük harf ayırmadan "içinde geçiyor mu" diye bakar; tam
+	   eşleşme istemezsek başlık, gövde metnindeki benzer kelimelere de
+	   denk gelip "hangisini kastettin?" hatası verir.                 */
+	await expect(page.getByText('Ana maddeler', { exact: true })).toBeVisible({
+		timeout: 60_000
+	});
+	await expect(page.getByText('Kilit rakamlar', { exact: true })).toBeVisible();
 	await expect(page.getByText('Riskli noktalar', { exact: true })).toBeVisible();
-	await expect(
-		page.getByText('Toplantıda sorulabilecek sorular', { exact: true })
-	).toBeVisible();
+	await expect(page.getByText('Sorulabilecek sorular', { exact: true })).toBeVisible();
 
 	/* --- 3. SOHBET --- */
 	await page.getByRole('tab', { name: 'Sohbet' }).click();
 
 	const question = 'Bu raporun en büyük riski ne?';
-	await page.getByPlaceholder('Doküman hakkında bir soru sor…').fill(question);
+	await page.getByPlaceholder('Bir soru sor…').fill(question);
 	await page.getByRole('button', { name: 'Gönder' }).click();
 
 	// Sorumuz ekranda görünmeli

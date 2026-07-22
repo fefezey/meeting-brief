@@ -1,31 +1,20 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import { Button } from '$lib/components/ui/button';
-	import * as Card from '$lib/components/ui/card';
-	import { Badge } from '$lib/components/ui/badge';
 	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
-	import Trash2 from '@lucide/svelte/icons/trash-2';
+	import DocumentPrism from '$lib/components/hero/DocumentPrism.svelte';
 	import type { PageData, ActionData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 
 	let selectedFile = $state<File | null>(null);
 	let uploading = $state(false);
-
-	// Kullanıcı dosyayı kutunun üzerine sürüklüyor mu?
-	// Sadece görsel geri bildirim için (kutunun rengi değişsin diye)
 	let dragging = $state(false);
-
-	// Sürükle-bırakta oluşan hatalar (sunucuya gitmeden, tarayıcıda)
 	let localError = $state('');
-
-	// Gizli dosya kutusuna erişim — sürüklenen dosyayı ona koyacağız
 	let fileInput = $state<HTMLInputElement | null>(null);
 
 	function acceptFile(file: File | undefined | null) {
 		localError = '';
 		if (!file) return;
-
 		if (file.type !== 'application/pdf') {
 			localError = 'Sadece PDF dosyası yükleyebilirsin.';
 			return;
@@ -34,49 +23,25 @@
 	}
 
 	function onFileChange(event: Event) {
-		/*
-		 * event.target kullanıyoruz, currentTarget değil.
-		 *
-		 * Svelte 5 bazı olayları tek tek elemanlara değil, kök elemana
-		 * bağlayıp topluca dinler (olay delegasyonu — daha az bellek).
-		 * Bu durumda currentTarget dinleyen eleman, yani kök olur;
-		 * target ise olayı ASIL çıkaran eleman — bize gereken bu.
-		 */
-		const input = event.target as HTMLInputElement;
-		acceptFile(input.files?.[0]);
+		// currentTarget değil target: Svelte olayları kök elemanda
+		// topluca dinliyor, currentTarget kök olur.
+		acceptFile((event.target as HTMLInputElement).files?.[0]);
 	}
 
-	/*
-	 * SÜRÜKLE-BIRAK
-	 *
-	 * preventDefault() şart: tarayıcının varsayılan davranışı, bırakılan
-	 * dosyayı YENİ SEKMEDE AÇMAKTIR. Engellemezsek uygulamadan çıkarız.
-	 */
 	function onDragOver(event: DragEvent) {
+		// Engellemezsek tarayıcı dosyayı yeni sekmede açar
 		event.preventDefault();
 		dragging = true;
-	}
-
-	function onDragLeave() {
-		dragging = false;
 	}
 
 	function onDrop(event: DragEvent) {
 		event.preventDefault();
 		dragging = false;
-
 		const file = event.dataTransfer?.files?.[0];
 		acceptFile(file);
 		if (!file || file.type !== 'application/pdf') return;
 
-		/*
-		 * Dosyayı gizli <input>'a aktarıyoruz.
-		 *
-		 * Neden gerekli? Form gönderilirken tarayıcı sadece input'un
-		 * içindeki dosyayı yollar; bizim JavaScript değişkenimizi bilmez.
-		 * input.files doğrudan atanamaz — DataTransfer nesnesi üzerinden
-		 * yapılır (tarayıcıların izin verdiği tek yol).
-		 */
+		// Dosyayı gizli input'a aktar — form gönderiminde giden odur
 		const transfer = new DataTransfer();
 		transfer.items.add(file);
 		if (fileInput) fileInput.files = transfer.files;
@@ -88,43 +53,52 @@
 	}
 
 	function formatDate(iso: string) {
-		return new Date(iso).toLocaleString('tr-TR', {
-			day: '2-digit',
-			month: 'short',
-			hour: '2-digit',
-			minute: '2-digit'
+		return new Date(iso).toLocaleDateString('tr-TR', {
+			day: 'numeric',
+			month: 'long'
 		});
 	}
 </script>
 
-<main class="mx-auto max-w-3xl space-y-8 p-6 md:p-10">
-	<header class="flex items-start justify-between gap-4">
-		<div class="space-y-2">
-			<h1 class="text-3xl font-semibold tracking-tight">Doküman Analiz</h1>
-			<p class="text-muted-foreground">
-				Uzun raporları toplantı öncesi hızlıca anla. PDF yükle; özetini, riskli
-				noktalarını ve sorulabilecek soruları çıkarsın.
-			</p>
-		</div>
+<div class="relative min-h-screen overflow-hidden">
+	<!-- Sayfanın üstünde çok yumuşak bir aydınlanma: zeminin düz
+	     görünmesini engeller, derinlik verir -->
+	<div
+		class="pointer-events-none absolute inset-x-0 top-0 h-[70vh] opacity-[0.055]"
+		style="background: radial-gradient(60% 70% at 62% 0%, var(--glow) 0%, transparent 70%)"
+		aria-hidden="true"
+	></div>
+
+	<!-- ══ ÜST ÇUBUK ══ -->
+	<header class="relative mx-auto flex max-w-6xl items-center justify-between px-6 py-7">
+		<span class="text-[0.9rem] font-medium tracking-tight">Doküman Analiz</span>
 		<ThemeToggle />
 	</header>
 
-	{#if data.usingMock}
-		<div class="border-border bg-muted text-muted-foreground rounded-lg border px-4 py-3 text-sm">
-			<strong class="text-foreground">Örnek veri modu.</strong>
-			AI bağlantısı henüz kurulmadı — analizler sahte veriyle üretiliyor. Gerçek
-			analiz için <code class="bg-background rounded px-1">.env</code> dosyasına
-			<code class="bg-background rounded px-1">ANTHROPIC_API_KEY</code> ekle.
-		</div>
-	{/if}
+	<!-- ══ HERO ══
+	     Sol: değer önerisi + yükleme. Sağ: soyut görsel.
+	     items-center ile iki sütun dikeyde ortalanıyor. -->
+	<section
+		class="relative mx-auto grid max-w-6xl items-center gap-14 px-6 pt-10 pb-24
+		       lg:grid-cols-[minmax(0,1fr)_minmax(0,0.95fr)] lg:gap-20 lg:pt-16"
+	>
+		<div class="max-w-xl">
+			<!-- Başlık: büyük, sıkı harf aralığı, iki satır.
+			     text-balance satırları dengeli böler (tek kelime alt satıra düşmez) -->
+			<h1
+				class="text-[2.6rem] leading-[1.06] font-semibold text-balance
+				       sm:text-[3.2rem] lg:text-[3.5rem]"
+			>
+				Uzun belgeler.<br />
+				<span class="text-muted-foreground">Net kararlar.</span>
+			</h1>
 
-	<!-- Yükleme formu -->
-	<Card.Root>
-		<Card.Header>
-			<Card.Title>PDF yükle</Card.Title>
-			<Card.Description>En fazla 32 MB, 600 sayfa.</Card.Description>
-		</Card.Header>
-		<Card.Content>
+			<p class="text-muted-foreground mt-6 max-w-md text-[1.05rem] leading-relaxed">
+				Raporu yükle; özetini, riskli noktalarını ve toplantıda sorman gereken
+				soruları çıkarsın. Okumak için değil, karar vermek için.
+			</p>
+
+			<!-- ── YÜKLEME ── -->
 			<form
 				method="POST"
 				action="?/upload"
@@ -136,21 +110,20 @@
 						uploading = false;
 					};
 				}}
-				class="space-y-4"
+				class="mt-10"
 			>
 				<!-- svelte-ignore a11y_no_static_element_interactions -->
 				<label
 					ondragover={onDragOver}
-					ondragleave={onDragLeave}
+					ondragleave={() => (dragging = false)}
 					ondrop={onDrop}
-					class="flex cursor-pointer flex-col items-center justify-center gap-2
-					       rounded-lg border border-dashed px-6 py-10 text-center transition-colors
+					class="glass ease-cinematic group relative flex cursor-pointer flex-col
+					       items-center justify-center gap-2 rounded-[22px] px-8 py-14
+					       text-center transition-all duration-500
 					       {dragging
-						? 'border-primary bg-primary/5'
-						: 'border-border hover:bg-muted/50'}"
+						? 'scale-[1.015] border-[color:var(--glow)]/45 bg-[color:var(--glow)]/[0.06]'
+						: 'hover:bg-white/[0.055]'}"
 				>
-					<!-- sr-only = ekranda görünmez ama ekran okuyucular ve
-					     form gönderimi için hâlâ mevcut -->
 					<input
 						bind:this={fileInput}
 						type="file"
@@ -159,96 +132,136 @@
 						onchange={onFileChange}
 						class="sr-only"
 					/>
+
 					{#if dragging}
-						<span class="font-medium">Bırak, yüklensin</span>
+						<span class="text-[0.95rem] font-medium">Bırak</span>
+						<span class="text-muted-foreground text-sm">dosya yüklensin</span>
 					{:else if selectedFile}
-						<span class="font-medium">{selectedFile.name}</span>
+						<span class="text-[0.95rem] font-medium">{selectedFile.name}</span>
 						<span class="text-muted-foreground text-sm">
-							{formatSize(selectedFile.size)} — değiştirmek için tıkla
+							{formatSize(selectedFile.size)} · değiştirmek için tıkla
 						</span>
 					{:else}
-						<span class="font-medium">Dosya seçmek için tıkla</span>
+						<span class="text-[0.95rem] font-medium">Dosya seçmek için tıkla</span>
 						<span class="text-muted-foreground text-sm">veya buraya sürükle</span>
 					{/if}
 				</label>
 
 				{#if localError || form?.error}
-					<p class="text-destructive text-sm">{localError || form?.error}</p>
+					<p class="text-destructive mt-4 text-sm">{localError || form?.error}</p>
 				{/if}
 
-				<Button type="submit" disabled={!selectedFile || uploading}>
-					{uploading ? 'İşleniyor…' : 'Yükle ve analiz et'}
-				</Button>
-			</form>
-		</Card.Content>
-	</Card.Root>
-
-	<!-- Yüklenmiş dokümanlar -->
-	<section class="space-y-3">
-		<h2 class="text-lg font-medium">Dokümanların</h2>
-
-		{#if data.documents.length === 0}
-			<p class="text-muted-foreground text-sm">
-				Henüz doküman yok. Yukarıdan bir PDF yükle.
-			</p>
-		{:else}
-			<ul class="space-y-2">
-				{#each data.documents as doc (doc.id)}
-					<!--
-						Bağlantı ve silme formu KARDEŞ elemanlar.
-						Formu bağlantının içine koyamayız — geçersiz HTML olur
-						ve tıklamalar birbirine karışır.
-					-->
-					<li
-						class="border-border hover:bg-muted/50 flex items-center gap-2
-						       rounded-lg border pr-2 transition-colors"
+				<div class="mt-6 flex flex-wrap items-center gap-4">
+					<!-- Ana eylem: kırık beyaz, koyu yazı. Renkli bir buton
+					     "uygulama" hissi verirdi; bu sakin bir otorite verir. -->
+					<button
+						type="submit"
+						disabled={!selectedFile || uploading}
+						class="ease-cinematic bg-primary text-primary-foreground rounded-full px-6
+						       py-2.5 text-[0.9rem] font-medium transition-all duration-300
+						       hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-30"
 					>
-						<a href="/documents/{doc.id}" class="min-w-0 flex-1 px-4 py-3">
-							<p class="truncate font-medium">{doc.title}</p>
-							<p class="text-muted-foreground text-xs">
+						{uploading ? 'İşleniyor' : 'Analiz et'}
+					</button>
+					<span class="text-muted-foreground text-xs">PDF · en fazla 32 MB</span>
+				</div>
+			</form>
+
+			{#if data.usingMock}
+				<p class="text-muted-foreground/70 mt-8 text-xs leading-relaxed">
+					Örnek veri modu. Gerçek analiz için bir Claude kimlik bilgisi tanımla.
+				</p>
+			{/if}
+		</div>
+
+		<!-- Sağ: soyut görsel. Küçük ekranlarda gizleniyor —
+		     telefonda dar alanda etkisini kaybeder ve yer kaplar. -->
+		<div class="hidden lg:block">
+			<DocumentPrism />
+		</div>
+	</section>
+
+	<!-- ══ DOKÜMANLAR ══ -->
+	{#if data.documents.length > 0}
+		<section class="relative mx-auto max-w-6xl px-6 pb-32">
+			<div class="mb-6 flex items-baseline justify-between">
+				<h2 class="text-sm font-medium tracking-tight">Dokümanların</h2>
+				<span class="text-muted-foreground text-xs">{data.documents.length}</span>
+			</div>
+
+			<ul class="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+				{#each data.documents as doc (doc.id)}
+					<li
+						class="glass ease-cinematic group relative rounded-[20px] p-5
+						       transition-all duration-500 hover:bg-white/[0.055]"
+					>
+						<a href="/documents/{doc.id}" class="block">
+							<!-- Durum göstergesi: rozet yerine küçük bir nokta.
+							     Daha sessiz, daha premium. -->
+							<div class="mb-4 flex items-center gap-2">
+								<span
+									class="size-1.5 rounded-full
+									       {doc.status === 'failed'
+										? 'bg-destructive'
+										: doc.status === 'ready'
+											? 'bg-[color:var(--glow-soft)]'
+											: 'animate-pulse bg-[color:var(--glow)]'}"
+								></span>
+								<span class="text-muted-foreground text-[0.7rem] tracking-wide uppercase">
+									{doc.status === 'failed'
+										? 'Hata'
+										: doc.status === 'ready'
+											? 'Hazır'
+											: 'İşleniyor'}
+								</span>
+								{#if !doc.hasExtractableText}
+									<span class="text-muted-foreground/60 text-[0.7rem]">· Taranmış</span>
+								{/if}
+							</div>
+
+							<p class="truncate text-[0.95rem] font-medium">{doc.title}</p>
+							<p class="text-muted-foreground mt-1.5 text-xs">
 								{doc.pageCount ?? '?'} sayfa · {formatSize(doc.sizeBytes)} · {formatDate(
 									doc.createdAt
 								)}
 							</p>
 						</a>
 
-						<div class="flex shrink-0 items-center gap-2">
-							{#if !doc.hasExtractableText}
-								<Badge variant="outline">Taranmış</Badge>
-							{/if}
-							{#if doc.status === 'failed'}
-								<Badge variant="destructive">Hata</Badge>
-							{:else if doc.status === 'ready'}
-								<Badge variant="secondary">Hazır</Badge>
-							{:else}
-								<Badge variant="outline">İşleniyor</Badge>
-							{/if}
-
-							<form
-								method="POST"
-								action="?/delete"
-								use:enhance={({ cancel }) => {
-									// Silme geri alınamaz — onay iste.
-									// confirm() tarayıcının yerleşik onay kutusu.
-									if (!confirm(`"${doc.title}" silinsin mi?`)) cancel();
-									return async ({ update }) => update();
-								}}
+						<!-- Sil: normalde görünmez, karta gelince beliriyor.
+						     Arayüzü sakin tutar; yıkıcı eylem göz önünde durmaz. -->
+						<form
+							method="POST"
+							action="?/delete"
+							use:enhance={({ cancel }) => {
+								if (!confirm(`"${doc.title}" silinsin mi?`)) cancel();
+								return async ({ update }) => update();
+							}}
+							class="absolute top-4 right-4"
+						>
+							<input type="hidden" name="id" value={doc.id} />
+							<button
+								type="submit"
+								aria-label="{doc.title} dosyasını sil"
+								class="text-muted-foreground hover:text-foreground ease-cinematic
+								       rounded-full p-1.5 opacity-0 transition-all duration-300
+								       group-hover:opacity-100 focus-visible:opacity-100"
 							>
-								<input type="hidden" name="id" value={doc.id} />
-								<Button
-									type="submit"
-									variant="ghost"
-									size="icon-sm"
-									aria-label="{doc.title} dosyasını sil"
-									title="Sil"
+								<svg
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="1.5"
+									stroke-linecap="round"
+									class="size-4"
+									aria-hidden="true"
 								>
-									<Trash2 />
-								</Button>
-							</form>
-						</div>
+									<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" />
+								</svg>
+							</button>
+						</form>
 					</li>
 				{/each}
 			</ul>
-		{/if}
-	</section>
-</main>
+		</section>
+	{/if}
+</div>

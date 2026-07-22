@@ -7,7 +7,7 @@ Türkçe · **[English](./README.md)**
 Elinde 60 sayfalık bir çeyrek raporu var ve 10 dakika sonra toplantı. Bu araç
 raporu okuyup sana bir brifing veriyor: ne diyor, nesi riskli, ne sorman lazım.
 
-![Doküman ekranı](./docs/screenshots/document-light.png)
+![Doküman ekranı](./docs/screenshots/document-dark.png)
 
 ---
 
@@ -115,6 +115,22 @@ Dokümanlar diskte (`.data/`) PDF + JSON olarak duruyor. `lib/server/storage/`
 dışında hiçbir yer bunu bilmiyor — çağıranlar sadece `listDocuments()`,
 `getAnalysis()`, `appendMessage()` görüyor. Postgres'e geçmek tek dosyayı
 değiştirmek demek.
+
+### Tasarım bir ürün kararıdır
+
+Varsayılan koyu tema, neredeyse siyah antrasit (`#0F1115`) ve sessiz cam
+yüzeyler. Ana buton doygun bir vurgu rengi değil, sıcak kırık beyaz — parlak
+buton "uygulama" der, ölçülü olan "enstrüman" der. Mavi ve camgöbeği sadece
+anlam taşıdığı yerde beliriyor: odak halkası, durum göstergesi, hero'dan geçen
+ışık.
+
+Brifing paneli bilerek ızgara içinde kartlar kullanmıyor. Kutular "dashboard"
+gibi okunur; bol boşluk ve ince bölüm başlıkları "belge" gibi okunur —
+toplantıya girmek üzere olan birinin istediği de budur.
+
+Hero görseli tamamen CSS: katmanlı yarı saydam paneller, aralarından süzülen
+içgörü kartları, yavaş geçen ışık. Yüklenecek görsel yok, kütüphane yok ve
+"hareketi azalt" tercihine kendiliğinden uyuyor.
 
 ### Gerçekten bir şey yakalayan testler
 
