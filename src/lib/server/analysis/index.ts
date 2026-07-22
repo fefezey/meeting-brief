@@ -24,9 +24,16 @@ export async function generateAnalysis(
 	pdfBytes: Uint8Array
 ): Promise<Analysis> {
 	if (isUsingMock()) {
-		// Gerçekçi hissettirmesi için küçük bir gecikme ekliyoruz —
-		// "yükleniyor" durumlarının doğru çalıştığını böyle test ederiz.
-		await new Promise((resolve) => setTimeout(resolve, 800));
+		/*
+		 * Yapay gecikme. Gerçek AI 60-120 saniye sürüyor; "analiz ediliyor"
+		 * ekranının doğru çalıştığını test edebilmek için mock'u da
+		 * yavaşlatabilmemiz gerekiyor.
+		 *
+		 * .env dosyasına MOCK_DELAY_MS=8000 yazarsan mock 8 saniye sürer.
+		 * Number(...) || 800  ->  değer yoksa veya sayı değilse 800 kullan
+		 */
+		const delayMs = Number(env.MOCK_DELAY_MS) || 800;
+		await new Promise((resolve) => setTimeout(resolve, delayMs));
 		return mockAnalysis(doc);
 	}
 

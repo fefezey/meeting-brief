@@ -1,9 +1,10 @@
 import { fail, redirect } from '@sveltejs/kit';
 import { randomUUID } from 'node:crypto';
 import type { Actions, PageServerLoad } from './$types';
-import { listDocuments, saveDocument, saveRecord, saveAnalysis } from '$lib/server/storage/local';
+import { listDocuments, saveDocument } from '$lib/server/storage/local';
 import { extractPdfInfo, makePreview } from '$lib/server/pdf/extract';
-import { generateAnalysis, isUsingMock } from '$lib/server/analysis';
+import { isUsingMock } from '$lib/server/analysis';
+import { startAnalysis } from '$lib/server/analysis/run';
 import { MAX_PDF_BYTES, MAX_PDF_PAGES, type DocumentRecord } from '$lib/types/document';
 
 /**
@@ -84,18 +85,12 @@ export const actions: Actions = {
 
 		await saveDocument(record, pdfBytes);
 
-		/* ---------- Analiz et ---------- */
+		/* ---------- Analizi BAŞLAT (beklemeden) ----------
+		   startAnalysis await EDİLMİYOR: analiz arkada çalışır,
+		   biz kullanıcıyı hemen doküman sayfasına yollarız.
+		   Orada "analiz ediliyor" gösterilip sonuç beklenecek.       */
 
-		try {
-			const analysis = await generateAnalysis(record, pdfBytes);
-			await saveAnalysis(record.id, analysis);
-			record.status = 'ready';
-		} catch (err) {
-			record.status = 'failed';
-			record.errorMessage = err instanceof Error ? err.message : 'Bilinmeyen hata';
-		}
-
-		await saveRecord(record);
+		startAnalysis(record, pdfBytes);
 
 		// Kullanıcıyı doküman sayfasına gönder.
 		// 303 = "işlem bitti, şu adrese git" (form gönderiminden sonraki

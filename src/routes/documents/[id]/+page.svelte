@@ -1,4 +1,7 @@
 <script lang="ts">
+	import { enhance } from '$app/forms';
+	import { invalidateAll } from '$app/navigation';
+	import { Button } from '$lib/components/ui/button';
 	import * as Card from '$lib/components/ui/card';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Separator } from '$lib/components/ui/separator';
@@ -6,9 +9,41 @@
 
 	let { data }: { data: PageData } = $props();
 
-	// Risk seviyelerini Türkçe etikete ve renge çeviren tablolar.
-	// Kod içine dağıtmak yerine tek yerde tutmak, sonradan
-	// değiştirmeyi kolaylaştırır.
+	// $derived = başka bir değerden TÜRETİLEN değer.
+	// data.doc.status her değiştiğinde bu da otomatik güncellenir.
+	let isAnalyzing = $derived(data.doc.status === 'analyzing');
+
+	// Bekleme süresini saniye olarak göstermek için
+	let elapsedSeconds = $state(0);
+
+	/*
+	 * $effect = "bağımlı olduğu değerler değişince çalış" bloğu.
+	 *
+	 * Burada iki iş yapıyor:
+	 *   1. Her 2 saniyede bir invalidateAll() çağırıp sunucudan
+	 *      güncel durumu ister (analiz bitti mi?)
+	 *   2. Geçen süreyi sayar
+	 *
+	 * return ile döndürülen fonksiyon TEMİZLİK fonksiyonudur:
+	 * durum değişince veya kullanıcı sayfadan çıkınca çalışır.
+	 * Olmazsa zamanlayıcılar arka planda sonsuza kadar döner
+	 * (bellek sızıntısı).
+	 */
+	$effect(() => {
+		if (!isAnalyzing) {
+			elapsedSeconds = 0;
+			return;
+		}
+
+		const tick = setInterval(() => elapsedSeconds++, 1000);
+		const poll = setInterval(() => invalidateAll(), 2000);
+
+		return () => {
+			clearInterval(tick);
+			clearInterval(poll);
+		};
+	});
+
 	const severityLabel = { high: 'Yüksek', medium: 'Orta', low: 'Düşük' } as const;
 	const severityVariant = {
 		high: 'destructive',
@@ -20,14 +55,17 @@
 		if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
 		return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 	}
+
+	function formatElapsed(seconds: number) {
+		if (seconds < 60) return `${seconds} sn`;
+		return `${Math.floor(seconds / 60)} dk ${seconds % 60} sn`;
+	}
 </script>
 
 <div class="flex h-screen flex-col">
 	<!-- Üst çubuk -->
 	<header class="border-border flex items-center gap-4 border-b px-4 py-3">
-		<a href="/" class="text-muted-foreground hover:text-foreground text-sm">
-			← Geri
-		</a>
+		<a href="/" class="text-muted-foreground hover:text-foreground text-sm">← Geri</a>
 		<div class="min-w-0 flex-1">
 			<h1 class="truncate font-medium">{data.doc.title}</h1>
 			<p class="text-muted-foreground text-xs">
@@ -39,17 +77,10 @@
 		{/if}
 	</header>
 
-	<!--
-		İki sütunlu düzen.
-		md:flex-row -> sadece orta boy ve üstü ekranlarda yan yana.
-		Telefonda alt alta gelir (mobil öncelikli tasarım).
-	-->
 	<div class="flex min-h-0 flex-1 flex-col md:flex-row">
 		<!-- SOL: PDF görüntüleyici -->
 		<div class="border-border bg-muted min-h-[50vh] flex-1 md:min-h-0 md:border-r">
 			{#if data.doc.hasExtractableText}
-				<!-- iframe = sayfa içine gömülü başka bir sayfa.
-				     Tarayıcının yerleşik PDF okuyucusu burada çalışır. -->
 				<iframe
 					src="/documents/{data.doc.id}/file"
 					title={data.doc.title}
@@ -74,24 +105,52 @@
 			{/if}
 		</div>
 
-		<!-- SAĞ: Analiz paneli. overflow-y-auto = içerik taşarsa kaydırılsın -->
+		<!-- SAĞ: Analiz paneli -->
 		<aside class="w-full shrink-0 overflow-y-auto p-4 md:w-[26rem] lg:w-[30rem]">
-			{#if data.doc.status === 'failed'}
+			{#if isAnalyzing}
+				<!-- BEKLEME DURUMU -->
+				<Card.Root>
+					<Card.Content class="flex flex-col items-center gap-3 py-10 text-center">
+						<!-- animate-spin = Tailwind'in sürekli döndürme animasyonu -->
+						<div
+							class="border-muted-foreground/30 border-t-foreground size-6
+							       animate-spin rounded-full border-2"
+						></div>
+						<p class="font-medium">Analiz ediliyor…</p>
+						<p class="text-muted-foreground max-w-xs text-sm">
+							{#if data.usingMock}
+								Örnek veri üretiliyor.
+							{:else}
+								Uzun raporlarda 1-2 dakika sürebilir. Bu sayfada
+								kalabilirsin, sonuç hazır olunca kendiliğinden görünecek.
+							{/if}
+						</p>
+						<p class="text-muted-foreground text-xs">
+							Geçen süre: {formatElapsed(elapsedSeconds)}
+						</p>
+					</Card.Content>
+				</Card.Root>
+			{:else if data.doc.status === 'failed'}
+				<!-- HATA DURUMU -->
 				<Card.Root>
 					<Card.Header>
 						<Card.Title>Analiz başarısız</Card.Title>
 					</Card.Header>
-					<Card.Content>
+					<Card.Content class="space-y-4">
 						<p class="text-muted-foreground text-sm">
 							{data.doc.errorMessage ?? 'Bilinmeyen bir hata oluştu.'}
 						</p>
+						<!-- PDF zaten diskte; baştan yüklemeye gerek yok -->
+						<form method="POST" action="?/retry" use:enhance>
+							<Button type="submit" variant="outline">Yeniden dene</Button>
+						</form>
 					</Card.Content>
 				</Card.Root>
 			{:else if !data.analysis}
 				<p class="text-muted-foreground text-sm">Analiz henüz hazır değil.</p>
 			{:else}
+				<!-- SONUÇ -->
 				<div class="space-y-4">
-					<!-- Özet -->
 					<Card.Root>
 						<Card.Header>
 							<Card.Title>Özet</Card.Title>
@@ -101,7 +160,6 @@
 						</Card.Content>
 					</Card.Root>
 
-					<!-- Ana maddeler -->
 					<Card.Root>
 						<Card.Header>
 							<Card.Title>Ana maddeler</Card.Title>
@@ -118,7 +176,6 @@
 						</Card.Content>
 					</Card.Root>
 
-					<!-- Kilit rakamlar -->
 					{#if data.analysis.keyFigures.length > 0}
 						<Card.Root>
 							<Card.Header>
@@ -139,7 +196,6 @@
 						</Card.Root>
 					{/if}
 
-					<!-- Riskli noktalar -->
 					{#if data.analysis.risks.length > 0}
 						<Card.Root>
 							<Card.Header>
@@ -165,7 +221,6 @@
 						</Card.Root>
 					{/if}
 
-					<!-- Sorulabilecek sorular -->
 					<Card.Root>
 						<Card.Header>
 							<Card.Title>Toplantıda sorulabilecek sorular</Card.Title>
