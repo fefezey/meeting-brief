@@ -1,5 +1,7 @@
 # Doküman Analiz — Meeting Prep for Long Reports
 
+[![CI](https://github.com/fefezey/meeting-brief/actions/workflows/ci.yml/badge.svg)](https://github.com/fefezey/meeting-brief/actions/workflows/ci.yml)
+
 **[Türkçe](./README.tr.md)** · English
 
 You have a 60-page quarterly report and a meeting in 10 minutes. This tool reads

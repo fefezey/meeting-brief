@@ -1,5 +1,7 @@
 # Doküman Analiz — Uzun raporlar için toplantı hazırlığı
 
+[![CI](https://github.com/fefezey/meeting-brief/actions/workflows/ci.yml/badge.svg)](https://github.com/fefezey/meeting-brief/actions/workflows/ci.yml)
+
 Türkçe · **[English](./README.md)**
 
 Elinde 60 sayfalık bir çeyrek raporu var ve 10 dakika sonra toplantı. Bu araç
