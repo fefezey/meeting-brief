@@ -1,6 +1,12 @@
 import { error, fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { getDocument, getAnalysis, readPdfBytes, saveRecord } from '$lib/server/storage/local';
+import {
+	getDocument,
+	getAnalysis,
+	getMessages,
+	readPdfBytes,
+	saveRecord
+} from '$lib/server/storage/local';
 import { isUsingMock } from '$lib/server/analysis';
 import { startAnalysis } from '$lib/server/analysis/run';
 
@@ -20,6 +26,7 @@ export const load: PageServerLoad = async ({ params }) => {
 	return {
 		doc,
 		analysis: await getAnalysis(params.id),
+		messages: await getMessages(params.id),
 		usingMock: isUsingMock()
 	};
 };

@@ -5,6 +5,8 @@
 	import * as Card from '$lib/components/ui/card';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Separator } from '$lib/components/ui/separator';
+	import * as Tabs from '$lib/components/ui/tabs';
+	import ChatPanel from '$lib/components/chat/ChatPanel.svelte';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -105,8 +107,10 @@
 			{/if}
 		</div>
 
-		<!-- SAĞ: Analiz paneli -->
-		<aside class="w-full shrink-0 overflow-y-auto p-4 md:w-[26rem] lg:w-[30rem]">
+		<!-- SAĞ: Analiz + sohbet paneli -->
+		<aside
+			class="flex min-h-0 w-full shrink-0 flex-col p-4 md:w-[26rem] lg:w-[30rem]"
+		>
 			{#if isAnalyzing}
 				<!-- BEKLEME DURUMU -->
 				<Card.Root>
@@ -149,8 +153,17 @@
 			{:else if !data.analysis}
 				<p class="text-muted-foreground text-sm">Analiz henüz hazır değil.</p>
 			{:else}
-				<!-- SONUÇ -->
-				<div class="space-y-4">
+				<!-- SONUÇ: iki sekme — Analiz ve Sohbet -->
+				<Tabs.Root value="analysis" class="flex min-h-0 flex-1 flex-col">
+					<Tabs.List class="w-full">
+						<Tabs.Trigger value="analysis" class="flex-1">Analiz</Tabs.Trigger>
+						<Tabs.Trigger value="chat" class="flex-1">Sohbet</Tabs.Trigger>
+					</Tabs.List>
+
+					<!-- min-h-0 = "içeriğin taşmasına izin ver, kaydırma çubuğu çıksın".
+					     Bu olmadan flex kutular içeriği sonsuza kadar uzatır. -->
+					<Tabs.Content value="analysis" class="min-h-0 flex-1 overflow-y-auto pt-2">
+						<div class="space-y-4">
 					<Card.Root>
 						<Card.Header>
 							<Card.Title>Özet</Card.Title>
@@ -235,8 +248,18 @@
 								{/each}
 							</ul>
 						</Card.Content>
-					</Card.Root>
-				</div>
+						</Card.Root>
+						</div>
+					</Tabs.Content>
+
+					<Tabs.Content value="chat" class="min-h-0 flex-1 pt-2">
+						<ChatPanel
+							documentId={data.doc.id}
+							initialMessages={data.messages}
+							suggestedQuestions={data.analysis.suggestedQuestions}
+						/>
+					</Tabs.Content>
+				</Tabs.Root>
 			{/if}
 		</aside>
 	</div>

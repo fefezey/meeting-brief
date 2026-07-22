@@ -3,6 +3,7 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import type { DocumentRecord } from '$lib/types/document';
 import type { Analysis } from '$lib/types/analysis';
+import type { ChatMessage } from '$lib/types/chat';
 
 /**
  * Basit, dosya tabanlı depo.
@@ -28,6 +29,7 @@ async function ensureDir() {
 const pdfPath = (id: string) => join(DATA_DIR, `${id}.pdf`);
 const metaPath = (id: string) => join(DATA_DIR, `${id}.json`);
 const analysisPath = (id: string) => join(DATA_DIR, `${id}.analysis.json`);
+const messagesPath = (id: string) => join(DATA_DIR, `${id}.messages.json`);
 
 /* ------------------------------------------------------------------ */
 /* Doküman                                                             */
@@ -97,4 +99,29 @@ export async function getAnalysis(id: string): Promise<Analysis | null> {
 	if (!existsSync(analysisPath(id))) return null;
 	const raw = await readFile(analysisPath(id), 'utf8');
 	return JSON.parse(raw) as Analysis;
+}
+
+/* ------------------------------------------------------------------ */
+/* Sohbet mesajları                                                    */
+/* ------------------------------------------------------------------ */
+
+/** Bir dokümanın tüm sohbet geçmişini okur. Hiç mesaj yoksa boş dizi. */
+export async function getMessages(id: string): Promise<ChatMessage[]> {
+	if (!existsSync(messagesPath(id))) return [];
+	const raw = await readFile(messagesPath(id), 'utf8');
+	return JSON.parse(raw) as ChatMessage[];
+}
+
+/**
+ * Sohbet geçmişine yeni bir mesaj ekler.
+ *
+ * Tüm listeyi okuyup, sona ekleyip, hepsini geri yazıyoruz.
+ * Verimsiz gibi görünse de bir dokümanın sohbeti onlarca mesajı
+ * geçmez — basitlik burada doğru tercih.
+ */
+export async function appendMessage(id: string, message: ChatMessage): Promise<void> {
+	await ensureDir();
+	const messages = await getMessages(id);
+	messages.push(message);
+	await writeFile(messagesPath(id), JSON.stringify(messages, null, 2), 'utf8');
 }
