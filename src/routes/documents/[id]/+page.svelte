@@ -7,6 +7,7 @@
 	import { Separator } from '$lib/components/ui/separator';
 	import * as Tabs from '$lib/components/ui/tabs';
 	import ChatPanel from '$lib/components/chat/ChatPanel.svelte';
+	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -77,6 +78,7 @@
 		{#if data.usingMock}
 			<Badge variant="outline">Örnek veri</Badge>
 		{/if}
+		<ThemeToggle />
 	</header>
 
 	<div class="flex min-h-0 flex-1 flex-col md:flex-row">

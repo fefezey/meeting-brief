@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile, readdir } from 'node:fs/promises';
+import { mkdir, readFile, writeFile, readdir, rm } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import type { DocumentRecord } from '$lib/types/document';
@@ -84,6 +84,22 @@ export async function listDocuments(): Promise<DocumentRecord[]> {
 
 	// Tarihe göre tersten sırala (en yeni en üstte)
 	return records.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+}
+
+/**
+ * Bir dokümanı ve ona ait HER ŞEYİ siler:
+ * PDF, bilgi kaydı, analiz ve sohbet geçmişi.
+ *
+ * force: true -> dosya zaten yoksa hata verme.
+ * Silme işleminde "zaten yok" bir sorun değil, istenen sonuç zaten bu.
+ */
+export async function deleteDocument(id: string): Promise<void> {
+	await Promise.all([
+		rm(pdfPath(id), { force: true }),
+		rm(metaPath(id), { force: true }),
+		rm(analysisPath(id), { force: true }),
+		rm(messagesPath(id), { force: true })
+	]);
 }
 
 /* ------------------------------------------------------------------ */

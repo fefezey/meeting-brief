@@ -3,21 +3,75 @@
 	import { Button } from '$lib/components/ui/button';
 	import * as Card from '$lib/components/ui/card';
 	import { Badge } from '$lib/components/ui/badge';
+	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
+	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import type { PageData, ActionData } from './$types';
 
-	// $props() = bu bileşenin dışarıdan aldığı veriler.
-	// data  -> +page.server.ts içindeki load'un döndürdüğü nesne
-	// form  -> action'ın döndürdüğü nesne (hata mesajı vb.)
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 
-	// $state() = değiştiğinde ekranı otomatik yenileyen değişken.
-	// Svelte'nin reaktivite mekanizmasının temeli budur.
 	let selectedFile = $state<File | null>(null);
 	let uploading = $state(false);
 
+	// Kullanıcı dosyayı kutunun üzerine sürüklüyor mu?
+	// Sadece görsel geri bildirim için (kutunun rengi değişsin diye)
+	let dragging = $state(false);
+
+	// Sürükle-bırakta oluşan hatalar (sunucuya gitmeden, tarayıcıda)
+	let localError = $state('');
+
+	// Gizli dosya kutusuna erişim — sürüklenen dosyayı ona koyacağız
+	let fileInput = $state<HTMLInputElement | null>(null);
+
+	function acceptFile(file: File | undefined | null) {
+		localError = '';
+		if (!file) return;
+
+		if (file.type !== 'application/pdf') {
+			localError = 'Sadece PDF dosyası yükleyebilirsin.';
+			return;
+		}
+		selectedFile = file;
+	}
+
 	function onFileChange(event: Event) {
 		const input = event.currentTarget as HTMLInputElement;
-		selectedFile = input.files?.[0] ?? null;
+		acceptFile(input.files?.[0]);
+	}
+
+	/*
+	 * SÜRÜKLE-BIRAK
+	 *
+	 * preventDefault() şart: tarayıcının varsayılan davranışı, bırakılan
+	 * dosyayı YENİ SEKMEDE AÇMAKTIR. Engellemezsek uygulamadan çıkarız.
+	 */
+	function onDragOver(event: DragEvent) {
+		event.preventDefault();
+		dragging = true;
+	}
+
+	function onDragLeave() {
+		dragging = false;
+	}
+
+	function onDrop(event: DragEvent) {
+		event.preventDefault();
+		dragging = false;
+
+		const file = event.dataTransfer?.files?.[0];
+		acceptFile(file);
+		if (!file || file.type !== 'application/pdf') return;
+
+		/*
+		 * Dosyayı gizli <input>'a aktarıyoruz.
+		 *
+		 * Neden gerekli? Form gönderilirken tarayıcı sadece input'un
+		 * içindeki dosyayı yollar; bizim JavaScript değişkenimizi bilmez.
+		 * input.files doğrudan atanamaz — DataTransfer nesnesi üzerinden
+		 * yapılır (tarayıcıların izin verdiği tek yol).
+		 */
+		const transfer = new DataTransfer();
+		transfer.items.add(file);
+		if (fileInput) fileInput.files = transfer.files;
 	}
 
 	function formatSize(bytes: number) {
@@ -36,21 +90,22 @@
 </script>
 
 <main class="mx-auto max-w-3xl space-y-8 p-6 md:p-10">
-	<header class="space-y-2">
-		<h1 class="text-3xl font-semibold tracking-tight">Doküman Analiz</h1>
-		<p class="text-muted-foreground">
-			Uzun raporları toplantı öncesi hızlıca anla. PDF yükle; özetini, riskli
-			noktalarını ve sorulabilecek soruları çıkarsın.
-		</p>
+	<header class="flex items-start justify-between gap-4">
+		<div class="space-y-2">
+			<h1 class="text-3xl font-semibold tracking-tight">Doküman Analiz</h1>
+			<p class="text-muted-foreground">
+				Uzun raporları toplantı öncesi hızlıca anla. PDF yükle; özetini, riskli
+				noktalarını ve sorulabilecek soruları çıkarsın.
+			</p>
+		</div>
+		<ThemeToggle />
 	</header>
 
 	{#if data.usingMock}
-		<div
-			class="border-border bg-muted text-muted-foreground rounded-lg border px-4 py-3 text-sm"
-		>
+		<div class="border-border bg-muted text-muted-foreground rounded-lg border px-4 py-3 text-sm">
 			<strong class="text-foreground">Örnek veri modu.</strong>
-			AI bağlantısı henüz kurulmadı — analizler sahte veriyle üretiliyor.
-			Gerçek analiz için <code class="bg-background rounded px-1">.env</code> dosyasına
+			AI bağlantısı henüz kurulmadı — analizler sahte veriyle üretiliyor. Gerçek
+			analiz için <code class="bg-background rounded px-1">.env</code> dosyasına
 			<code class="bg-background rounded px-1">ANTHROPIC_API_KEY</code> ekle.
 		</div>
 	{/if}
@@ -62,12 +117,6 @@
 			<Card.Description>En fazla 32 MB, 600 sayfa.</Card.Description>
 		</Card.Header>
 		<Card.Content>
-			<!--
-				enctype="multipart/form-data" -> dosya göndermek için ZORUNLU.
-				action="?/upload"             -> sunucudaki "upload" action'ını çağırır.
-				use:enhance                   -> formu JavaScript ile gönderir
-				                                 (sayfa yenilenmez, daha akıcı)
-			-->
 			<form
 				method="POST"
 				action="?/upload"
@@ -81,19 +130,30 @@
 				}}
 				class="space-y-4"
 			>
+				<!-- svelte-ignore a11y_no_static_element_interactions -->
 				<label
-					class="border-border hover:bg-muted/50 flex cursor-pointer flex-col
-					       items-center justify-center gap-2 rounded-lg border border-dashed
-					       px-6 py-10 text-center transition-colors"
+					ondragover={onDragOver}
+					ondragleave={onDragLeave}
+					ondrop={onDrop}
+					class="flex cursor-pointer flex-col items-center justify-center gap-2
+					       rounded-lg border border-dashed px-6 py-10 text-center transition-colors
+					       {dragging
+						? 'border-primary bg-primary/5'
+						: 'border-border hover:bg-muted/50'}"
 				>
+					<!-- sr-only = ekranda görünmez ama ekran okuyucular ve
+					     form gönderimi için hâlâ mevcut -->
 					<input
+						bind:this={fileInput}
 						type="file"
 						name="file"
 						accept="application/pdf"
 						onchange={onFileChange}
 						class="sr-only"
 					/>
-					{#if selectedFile}
+					{#if dragging}
+						<span class="font-medium">Bırak, yüklensin</span>
+					{:else if selectedFile}
 						<span class="font-medium">{selectedFile.name}</span>
 						<span class="text-muted-foreground text-sm">
 							{formatSize(selectedFile.size)} — değiştirmek için tıkla
@@ -104,8 +164,8 @@
 					{/if}
 				</label>
 
-				{#if form?.error}
-					<p class="text-destructive text-sm">{form.error}</p>
+				{#if localError || form?.error}
+					<p class="text-destructive text-sm">{localError || form?.error}</p>
 				{/if}
 
 				<Button type="submit" disabled={!selectedFile || uploading}>
@@ -125,38 +185,59 @@
 			</p>
 		{:else}
 			<ul class="space-y-2">
-				<!-- {#each} = liste döngüsü. (doc.id) = Svelte'nin her satırı
-				     benzersiz takip etmesini sağlayan anahtar -->
 				{#each data.documents as doc (doc.id)}
-					<li>
-						<a
-							href="/documents/{doc.id}"
-							class="border-border hover:bg-muted/50 flex items-center
-							       justify-between gap-4 rounded-lg border px-4 py-3
-							       transition-colors"
-						>
-							<div class="min-w-0 space-y-1">
-								<p class="truncate font-medium">{doc.title}</p>
-								<p class="text-muted-foreground text-xs">
-									{doc.pageCount ?? '?'} sayfa · {formatSize(doc.sizeBytes)} · {formatDate(
-										doc.createdAt
-									)}
-								</p>
-							</div>
-
-							<div class="flex shrink-0 items-center gap-2">
-								{#if !doc.hasExtractableText}
-									<Badge variant="outline">Taranmış</Badge>
-								{/if}
-								{#if doc.status === 'failed'}
-									<Badge variant="destructive">Hata</Badge>
-								{:else if doc.status === 'ready'}
-									<Badge variant="secondary">Hazır</Badge>
-								{:else}
-									<Badge variant="outline">İşleniyor</Badge>
-								{/if}
-							</div>
+					<!--
+						Bağlantı ve silme formu KARDEŞ elemanlar.
+						Formu bağlantının içine koyamayız — geçersiz HTML olur
+						ve tıklamalar birbirine karışır.
+					-->
+					<li
+						class="border-border hover:bg-muted/50 flex items-center gap-2
+						       rounded-lg border pr-2 transition-colors"
+					>
+						<a href="/documents/{doc.id}" class="min-w-0 flex-1 px-4 py-3">
+							<p class="truncate font-medium">{doc.title}</p>
+							<p class="text-muted-foreground text-xs">
+								{doc.pageCount ?? '?'} sayfa · {formatSize(doc.sizeBytes)} · {formatDate(
+									doc.createdAt
+								)}
+							</p>
 						</a>
+
+						<div class="flex shrink-0 items-center gap-2">
+							{#if !doc.hasExtractableText}
+								<Badge variant="outline">Taranmış</Badge>
+							{/if}
+							{#if doc.status === 'failed'}
+								<Badge variant="destructive">Hata</Badge>
+							{:else if doc.status === 'ready'}
+								<Badge variant="secondary">Hazır</Badge>
+							{:else}
+								<Badge variant="outline">İşleniyor</Badge>
+							{/if}
+
+							<form
+								method="POST"
+								action="?/delete"
+								use:enhance={({ cancel }) => {
+									// Silme geri alınamaz — onay iste.
+									// confirm() tarayıcının yerleşik onay kutusu.
+									if (!confirm(`"${doc.title}" silinsin mi?`)) cancel();
+									return async ({ update }) => update();
+								}}
+							>
+								<input type="hidden" name="id" value={doc.id} />
+								<Button
+									type="submit"
+									variant="ghost"
+									size="icon-sm"
+									aria-label="{doc.title} dosyasını sil"
+									title="Sil"
+								>
+									<Trash2 />
+								</Button>
+							</form>
+						</div>
 					</li>
 				{/each}
 			</ul>

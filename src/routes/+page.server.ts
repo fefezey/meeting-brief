@@ -1,7 +1,7 @@
 import { fail, redirect } from '@sveltejs/kit';
 import { randomUUID } from 'node:crypto';
 import type { Actions, PageServerLoad } from './$types';
-import { listDocuments, saveDocument } from '$lib/server/storage/local';
+import { listDocuments, saveDocument, deleteDocument } from '$lib/server/storage/local';
 import { extractPdfInfo, makePreview } from '$lib/server/pdf/extract';
 import { isUsingMock } from '$lib/server/analysis';
 import { startAnalysis } from '$lib/server/analysis/run';
@@ -97,5 +97,18 @@ export const actions: Actions = {
 		// standart yönlendirme kodu; sayfa yenilenince form tekrar
 		// gönderilmesin diye)
 		redirect(303, `/documents/${record.id}`);
+	},
+
+	/** Dokümanı ve ona ait tüm verileri siler. */
+	delete: async ({ request }) => {
+		const formData = await request.formData();
+		const id = formData.get('id');
+
+		if (typeof id !== 'string' || !id) {
+			return fail(400, { error: 'Geçersiz doküman kimliği.' });
+		}
+
+		await deleteDocument(id);
+		return { deleted: true };
 	}
 };
