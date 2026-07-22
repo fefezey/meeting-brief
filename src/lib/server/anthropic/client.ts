@@ -1,21 +1,21 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { env } from '$env/dynamic/private';
 
 /**
  * SvelteKit sunucusunun kullandığı Claude bağlantısı.
  *
- * $env/dynamic/private -> SvelteKit'in gizli ortam değişkeni kapısı.
- * Neden "process.env" değil? Bu modülü yanlışlıkla tarayıcı tarafındaki
- * bir dosyadan import edersen SvelteKit projeyi DERLEMEZ. Yani API
- * anahtarının kullanıcıya sızması kaza eseri bile mümkün olmaz.
+ * DİKKAT: Yapıcıya bilerek hiçbir şey vermiyoruz.
  *
- * Terminal betikleri bu dosyayı KULLANMAZ; kendi bağlantısını kurar.
- * (bkz. scripts/analyze-local.ts)
+ * SDK kimlik bilgisini kendisi arar ve İLK bulduğunu kullanır:
+ *   1. ANTHROPIC_API_KEY       (ortam değişkeni)
+ *   2. ANTHROPIC_AUTH_TOKEN    (ortam değişkeni)
+ *   3. OAuth profili           ("ant auth login" ile oluşan)
+ *
+ * Bu yüzden hem API anahtarıyla hem OAuth ile aynı kod çalışır.
+ * apiKey'i elle verseydik OAuth yolu hiç denenmezdi.
+ *
+ * Bu dosya sadece gerçek AI modunda yükleniyor (dinamik import ile),
+ * bkz. lib/server/analysis/index.ts
  */
-if (!env.ANTHROPIC_API_KEY) {
-	throw new Error('ANTHROPIC_API_KEY tanımlı değil — .env dosyasını kontrol et');
-}
-
-export const anthropic = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
+export const anthropic = new Anthropic();
 
 export { MODEL, FILES_BETA } from './config';

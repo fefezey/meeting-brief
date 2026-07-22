@@ -2,6 +2,7 @@ import { env } from '$env/dynamic/private';
 import type { Analysis } from '$lib/types/analysis';
 import type { DocumentRecord } from '$lib/types/document';
 import { mockAnalysis } from './mock';
+import { hasCredentials } from './credentials';
 
 /**
  * Analiz üretiminin TEK giriş kapısı.
@@ -13,10 +14,13 @@ import { mockAnalysis } from './mock';
 
 /** Şu an sahte veri mi kullanıyoruz? Arayüzde uyarı göstermek için. */
 export function isUsingMock(): boolean {
-	// USE_MOCK_AI=true yazılmışsa anahtar olsa bile mock kullan
+	// Elle zorlama: kimlik bilgisi olsa bile örnek veri kullan
 	if (env.USE_MOCK_AI === 'true') return true;
-	// Anahtar yoksa mecburen mock
-	return !env.ANTHROPIC_API_KEY;
+	// Elle zorlama: gerçek AI'ı dene (bağlantı hatası varsa görmek için)
+	if (env.USE_MOCK_AI === 'false') return false;
+
+	// Otomatik: kimlik bilgisi (API anahtarı VEYA OAuth profili) yoksa mock
+	return !hasCredentials();
 }
 
 export async function generateAnalysis(
