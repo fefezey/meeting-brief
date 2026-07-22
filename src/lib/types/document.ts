@@ -1,24 +1,29 @@
 export type DocumentStatus =
-  | "uploading"
-  | "processing" // Claude Files API'ye yükleniyor
-  | "analyzing" // Analiz Paketi üretiliyor
-  | "ready"
-  | "failed";
+	| 'processing' // metin çıkarılıyor
+	| 'analyzing' // analiz üretiliyor
+	| 'ready' // hazır
+	| 'failed'; // hata
 
 export interface DocumentRecord {
-  id: string;
-  title: string;
-  /** Supabase Storage içindeki yol */
-  storagePath: string;
-  /** Claude Files API file_id — sohbette document block olarak referans verilir */
-  anthropicFileId: string | null;
-  pageCount: number | null;
-  sizeBytes: number;
-  status: DocumentStatus;
-  errorMessage: string | null;
-  createdAt: string;
+	/** Benzersiz kimlik — dosya adlarında da kullanılır */
+	id: string;
+	/** Kullanıcının yüklediği dosyanın adı */
+	title: string;
+	sizeBytes: number;
+	pageCount: number | null;
+	/**
+	 * PDF'ten metin çıkabildi mi?
+	 * false ise dosya büyük ihtimalle TARANMIŞ (fotoğraf) bir belgedir.
+	 */
+	hasExtractableText: boolean;
+	/** Metnin ilk birkaç yüz karakteri — arayüzde önizleme için */
+	textPreview: string;
+	status: DocumentStatus;
+	errorMessage: string | null;
+	/** ISO 8601 tarih metni, ör. "2026-07-22T13:45:00.000Z" */
+	createdAt: string;
 }
 
-/** Claude API limitleri — upload sırasında kontrol edilir */
-export const MAX_PDF_BYTES = 32 * 1024 * 1024;
+/* --- Claude API limitleri: yükleme sırasında kontrol edilir --- */
+export const MAX_PDF_BYTES = 32 * 1024 * 1024; // 32 MB
 export const MAX_PDF_PAGES = 600;
